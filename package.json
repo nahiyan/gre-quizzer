@@ -1,0 +1,15 @@
+{
+  "name": "gre-quizzer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "npx chokidar '**/*.elm' -c 'elm make src/Main.elm --output dist/main.js --debug' --initial"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0"
+  }
+}
