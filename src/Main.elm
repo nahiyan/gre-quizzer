@@ -3,20 +3,25 @@ module Main exposing (Model, Msg(..), init, main, update, view)
 import Browser
 import Data exposing (data)
 import Dict exposing (Dict)
-import Html exposing (Html, button, div, h1, h3, input, label, table, tbody, td, text, th, thead, tr)
-import Html.Attributes exposing (class, colspan, for, id, placeholder, scope, type_, value)
+import Html exposing (Html, a, button, div, h1, h3, hr, input, label, table, tbody, td, text, th, thead, tr)
+import Html.Attributes exposing (class, href, placeholder, scope, type_, value)
 import Html.Events exposing (onClick, onInput)
-import List.Extra exposing (removeIfIndex)
+import Random
+import Random.List exposing (shuffle)
 import Tuple
+
+
+type alias Flags =
+    ()
 
 
 
 -- MAIN
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
 
 
@@ -24,8 +29,7 @@ main =
 
 
 type Mode
-    = Quiz String ( Int, Int )
-    | Default
+    = Quiz ( Int, Int )
     | WordsList ( Int, Int )
 
 
@@ -34,12 +38,12 @@ type Mode
 
 
 type alias Model =
-    { wordMeanings : Dict Int ( String, String ), mode : Mode, quizRange : ( Int, Int ), wordsListRange : ( Int, Int ) }
+    { wordMeanings : Dict Int ( String, String ), mode : Mode, quizRange : ( Int, Int ), wordsListRange : ( Int, Int ), quizOptions : Dict Int (List Int) }
 
 
-init : Model
-init =
-    Model data Default ( 0, 0 ) ( 1, 800 )
+init : Flags -> ( Model, Cmd msg )
+init _ =
+    ( Model data (WordsList ( 1, 10 )) ( 1, 10 ) ( 1, 800 ) Dict.empty, Cmd.none )
 
 
 
@@ -47,42 +51,62 @@ init =
 
 
 type Msg
-    = StartQuiz
+    = StartQuiz (Dict Int (List Int))
     | CreateWordsList
     | UpdateQuizRangeStart String
     | UpdateQuizRangeEnd String
     | UpdateWordsListRangeStart String
     | UpdateWordsListRangeEnd String
+    | RandomizeNewQuiz
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        RandomizeNewQuiz ->
+            case model.quizRange of
+                ( start, end ) ->
+                    let
+                        quantity =
+                            end - start + 1
+                    in
+                    ( model
+                    , Random.generate StartQuiz
+                        (Random.list quantity (List.range 0 799 |> shuffle |> Random.map (List.take 4))
+                            |> Random.map
+                                (\list ->
+                                    list
+                                        |> List.indexedMap (\index item -> ( index, item ))
+                                        |> Dict.fromList
+                                )
+                        )
+                    )
+
+        StartQuiz options ->
+            ( { model | mode = Quiz model.quizRange, quizOptions = options }, Cmd.none )
+
         CreateWordsList ->
-            { model | mode = WordsList model.wordsListRange }
+            ( { model | mode = WordsList model.wordsListRange }, Cmd.none )
 
         UpdateQuizRangeStart start ->
             case model.quizRange of
                 ( _, end ) ->
-                    { model | quizRange = ( String.toInt start |> Maybe.withDefault 0, end ) }
+                    ( { model | quizRange = ( String.toInt start |> Maybe.withDefault 0, end ) }, Cmd.none )
 
         UpdateQuizRangeEnd end ->
             case model.quizRange of
                 ( start, _ ) ->
-                    { model | quizRange = ( start, String.toInt end |> Maybe.withDefault 0 ) }
+                    ( { model | quizRange = ( start, String.toInt end |> Maybe.withDefault 0 ) }, Cmd.none )
 
         UpdateWordsListRangeStart start ->
             case model.wordsListRange of
                 ( _, end ) ->
-                    { model | wordsListRange = ( String.toInt start |> Maybe.withDefault 0, end ) }
+                    ( { model | wordsListRange = ( String.toInt start |> Maybe.withDefault 0, end ) }, Cmd.none )
 
         UpdateWordsListRangeEnd end ->
             case model.wordsListRange of
                 ( start, _ ) ->
-                    { model | wordsListRange = ( start, String.toInt end |> Maybe.withDefault 0 ) }
-
-        _ ->
-            model
+                    ( { model | wordsListRange = ( start, String.toInt end |> Maybe.withDefault 0 ) }, Cmd.none )
 
 
 
@@ -127,7 +151,7 @@ view model =
                         ]
                         []
                     ]
-                , button [ class "btn btn-outline-success" ] [ text "Start" ]
+                , button [ class "btn btn-outline-success", onClick RandomizeNewQuiz ] [ text "Start" ]
                 , h3 [ class "mt-3" ] [ text "New Words List" ]
                 , label
                     [ class "form-label"
@@ -164,6 +188,67 @@ view model =
             ]
         , div [ class "col-8" ]
             (case model.mode of
+                Quiz range ->
+                    let
+                        start =
+                            Tuple.first range |> String.fromInt
+
+                        end =
+                            Tuple.second range |> String.fromInt
+                    in
+                    h1 []
+                        [ text <| "Quiz (" ++ start ++ " to " ++ end ++ ")"
+                        ]
+                        :: (List.range (Tuple.first range) (Tuple.second range)
+                                |> List.map
+                                    (\index ->
+                                        let
+                                            ( word, _ ) =
+                                                Dict.get index model.wordMeanings |> Maybe.withDefault ( "Not found", "" )
+
+                                            optionIndices =
+                                                model.quizOptions |> Dict.get (index - 1) |> Maybe.withDefault [ 0, 1, 2, 3 ]
+
+                                            correctOptionInIndices =
+                                                optionIndices |> List.any (\index_ -> index_ == index)
+
+                                            minOptionIndex =
+                                                optionIndices |> List.minimum |> Maybe.withDefault 0
+
+                                            options =
+                                                optionIndices
+                                                    |> List.map
+                                                        (\index_ ->
+                                                            let
+                                                                finalIndex =
+                                                                    if not correctOptionInIndices && minOptionIndex == index_ then
+                                                                        index
+
+                                                                    else
+                                                                        index_
+                                                            in
+                                                            Dict.get finalIndex model.wordMeanings |> Maybe.withDefault ( "", "Not found" ) |> Tuple.second
+                                                        )
+                                        in
+                                        div []
+                                            [ h3 [ class "my-3" ] [ text <| String.fromInt index ++ ". " ++ word ]
+                                            , div
+                                                [ class "list-group list-group-numbered mb-3"
+                                                ]
+                                                (options
+                                                    |> List.map
+                                                        (\option ->
+                                                            a
+                                                                [ href "#"
+                                                                , class "list-group-item list-group-item-action"
+                                                                ]
+                                                                [ text option ]
+                                                        )
+                                                )
+                                            ]
+                                    )
+                           )
+
                 WordsList range ->
                     let
                         start =
@@ -216,8 +301,10 @@ view model =
                             )
                         ]
                     ]
-
-                _ ->
-                    []
             )
         ]
+
+
+subscriptions : Model -> Sub msg
+subscriptions model =
+    Sub.none

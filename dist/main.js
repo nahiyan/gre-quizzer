@@ -80,6 +80,190 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEBUG mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
+// EQUALITY
+
+function _Utils_eq(x, y)
+{
+	for (
+		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
+		isEqual && (pair = stack.pop());
+		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
+		)
+	{}
+
+	return isEqual;
+}
+
+function _Utils_eqHelp(x, y, depth, stack)
+{
+	if (x === y)
+	{
+		return true;
+	}
+
+	if (typeof x !== 'object' || x === null || y === null)
+	{
+		typeof x === 'function' && _Debug_crash(5);
+		return false;
+	}
+
+	if (depth > 100)
+	{
+		stack.push(_Utils_Tuple2(x,y));
+		return true;
+	}
+
+	/**/
+	if (x.$ === 'Set_elm_builtin')
+	{
+		x = $elm$core$Set$toList(x);
+		y = $elm$core$Set$toList(y);
+	}
+	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	/**_UNUSED/
+	if (x.$ < 0)
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	for (var key in x)
+	{
+		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+var _Utils_equal = F2(_Utils_eq);
+var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
+
+
+
+// COMPARISONS
+
+// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
+// the particular integer values assigned to LT, EQ, and GT.
+
+function _Utils_cmp(x, y, ord)
+{
+	if (typeof x !== 'object')
+	{
+		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
+	}
+
+	/**/
+	if (x instanceof String)
+	{
+		var a = x.valueOf();
+		var b = y.valueOf();
+		return a === b ? 0 : a < b ? -1 : 1;
+	}
+	//*/
+
+	/**_UNUSED/
+	if (typeof x.$ === 'undefined')
+	//*/
+	/**/
+	if (x.$[0] === '#')
+	//*/
+	{
+		return (ord = _Utils_cmp(x.a, y.a))
+			? ord
+			: (ord = _Utils_cmp(x.b, y.b))
+				? ord
+				: _Utils_cmp(x.c, y.c);
+	}
+
+	// traverse conses until end of a list or a mismatch
+	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
+	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
+}
+
+var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
+var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
+var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
+var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
+
+var _Utils_compare = F2(function(x, y)
+{
+	var n = _Utils_cmp(x, y);
+	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
+});
+
+
+// COMMON VALUES
+
+var _Utils_Tuple0_UNUSED = 0;
+var _Utils_Tuple0 = { $: '#0' };
+
+function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
+function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
+
+function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
+function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
+
+function _Utils_chr_UNUSED(c) { return c; }
+function _Utils_chr(c) { return new String(c); }
+
+
+// RECORDS
+
+function _Utils_update(oldRecord, updatedFields)
+{
+	var newRecord = {};
+
+	for (var key in oldRecord)
+	{
+		newRecord[key] = oldRecord[key];
+	}
+
+	for (var key in updatedFields)
+	{
+		newRecord[key] = updatedFields[key];
+	}
+
+	return newRecord;
+}
+
+
+// APPEND
+
+var _Utils_append = F2(_Utils_ap);
+
+function _Utils_ap(xs, ys)
+{
+	// append Strings
+	if (typeof xs === 'string')
+	{
+		return xs + ys;
+	}
+
+	// append Lists
+	if (!xs.b)
+	{
+		return ys;
+	}
+	var root = _List_Cons(xs.a, ys);
+	xs = xs.b
+	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		curr = curr.b = _List_Cons(xs.a, ys);
+	}
+	return root;
+}
+
+
+
 var _List_Nil_UNUSED = { $: 0 };
 var _List_Nil = { $: '[]' };
 
@@ -605,190 +789,6 @@ function _Debug_regionToString(region)
 		return 'on line ' + region.start.line;
 	}
 	return 'on lines ' + region.start.line + ' through ' + region.end.line;
-}
-
-
-
-// EQUALITY
-
-function _Utils_eq(x, y)
-{
-	for (
-		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
-		isEqual && (pair = stack.pop());
-		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
-		)
-	{}
-
-	return isEqual;
-}
-
-function _Utils_eqHelp(x, y, depth, stack)
-{
-	if (x === y)
-	{
-		return true;
-	}
-
-	if (typeof x !== 'object' || x === null || y === null)
-	{
-		typeof x === 'function' && _Debug_crash(5);
-		return false;
-	}
-
-	if (depth > 100)
-	{
-		stack.push(_Utils_Tuple2(x,y));
-		return true;
-	}
-
-	/**/
-	if (x.$ === 'Set_elm_builtin')
-	{
-		x = $elm$core$Set$toList(x);
-		y = $elm$core$Set$toList(y);
-	}
-	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	/**_UNUSED/
-	if (x.$ < 0)
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	for (var key in x)
-	{
-		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-var _Utils_equal = F2(_Utils_eq);
-var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
-
-
-
-// COMPARISONS
-
-// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
-// the particular integer values assigned to LT, EQ, and GT.
-
-function _Utils_cmp(x, y, ord)
-{
-	if (typeof x !== 'object')
-	{
-		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
-	}
-
-	/**/
-	if (x instanceof String)
-	{
-		var a = x.valueOf();
-		var b = y.valueOf();
-		return a === b ? 0 : a < b ? -1 : 1;
-	}
-	//*/
-
-	/**_UNUSED/
-	if (typeof x.$ === 'undefined')
-	//*/
-	/**/
-	if (x.$[0] === '#')
-	//*/
-	{
-		return (ord = _Utils_cmp(x.a, y.a))
-			? ord
-			: (ord = _Utils_cmp(x.b, y.b))
-				? ord
-				: _Utils_cmp(x.c, y.c);
-	}
-
-	// traverse conses until end of a list or a mismatch
-	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
-	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
-}
-
-var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
-var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
-var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
-var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
-
-var _Utils_compare = F2(function(x, y)
-{
-	var n = _Utils_cmp(x, y);
-	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
-});
-
-
-// COMMON VALUES
-
-var _Utils_Tuple0_UNUSED = 0;
-var _Utils_Tuple0 = { $: '#0' };
-
-function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
-function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
-
-function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
-function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
-
-function _Utils_chr_UNUSED(c) { return c; }
-function _Utils_chr(c) { return new String(c); }
-
-
-// RECORDS
-
-function _Utils_update(oldRecord, updatedFields)
-{
-	var newRecord = {};
-
-	for (var key in oldRecord)
-	{
-		newRecord[key] = oldRecord[key];
-	}
-
-	for (var key in updatedFields)
-	{
-		newRecord[key] = updatedFields[key];
-	}
-
-	return newRecord;
-}
-
-
-// APPEND
-
-var _Utils_append = F2(_Utils_ap);
-
-function _Utils_ap(xs, ys)
-{
-	// append Strings
-	if (typeof xs === 'string')
-	{
-		return xs + ys;
-	}
-
-	// append Lists
-	if (!xs.b)
-	{
-		return ys;
-	}
-	var root = _List_Cons(xs.a, ys);
-	xs = xs.b
-	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		curr = curr.b = _List_Cons(xs.a, ys);
-	}
-	return root;
 }
 
 
@@ -4938,33 +4938,56 @@ function _Browser_load(url)
 		}
 	}));
 }
+
+
+
+function _Time_now(millisToPosix)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(millisToPosix(Date.now())));
+	});
+}
+
+var _Time_setInterval = F2(function(interval, task)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var id = setInterval(function() { _Scheduler_rawSpawn(task); }, interval);
+		return function() { clearInterval(id); };
+	});
+});
+
+function _Time_here()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		callback(_Scheduler_succeed(
+			A2($elm$time$Time$customZone, -(new Date().getTimezoneOffset()), _List_Nil)
+		));
+	});
+}
+
+
+function _Time_getZoneName()
+{
+	return _Scheduler_binding(function(callback)
+	{
+		try
+		{
+			var name = $elm$time$Time$Name(Intl.DateTimeFormat().resolvedOptions().timeZone);
+		}
+		catch (e)
+		{
+			var name = $elm$time$Time$Offset(new Date().getTimezoneOffset());
+		}
+		callback(_Scheduler_succeed(name));
+	});
+}
 var $elm$core$Basics$EQ = {$: 'EQ'};
+var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
-var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
-var $elm$core$Array$foldr = F3(
-	function (func, baseCase, _v0) {
-		var tree = _v0.c;
-		var tail = _v0.d;
-		var helper = F2(
-			function (node, acc) {
-				if (node.$ === 'SubTree') {
-					var subTree = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
-				} else {
-					var values = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
-				}
-			});
-		return A3(
-			$elm$core$Elm$JsArray$foldr,
-			helper,
-			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
-			tree);
-	});
-var $elm$core$Array$toList = function (array) {
-	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
-};
 var $elm$core$Dict$foldr = F3(
 	function (func, acc, t) {
 		foldr:
@@ -5017,2564 +5040,30 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
-var $elm$core$Basics$GT = {$: 'GT'};
-var $author$project$Main$Default = {$: 'Default'};
-var $author$project$Main$Model = F4(
-	function (wordMeanings, mode, quizRange, wordsListRange) {
-		return {mode: mode, quizRange: quizRange, wordMeanings: wordMeanings, wordsListRange: wordsListRange};
+var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
+var $elm$core$Array$foldr = F3(
+	function (func, baseCase, _v0) {
+		var tree = _v0.c;
+		var tail = _v0.d;
+		var helper = F2(
+			function (node, acc) {
+				if (node.$ === 'SubTree') {
+					var subTree = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
+				} else {
+					var values = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
+				}
+			});
+		return A3(
+			$elm$core$Elm$JsArray$foldr,
+			helper,
+			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
+			tree);
 	});
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
-var $elm$core$List$foldl = F3(
-	function (func, acc, list) {
-		foldl:
-		while (true) {
-			if (!list.b) {
-				return acc;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				var $temp$func = func,
-					$temp$acc = A2(func, x, acc),
-					$temp$list = xs;
-				func = $temp$func;
-				acc = $temp$acc;
-				list = $temp$list;
-				continue foldl;
-			}
-		}
-	});
-var $elm$core$Dict$Black = {$: 'Black'};
-var $elm$core$Dict$RBNode_elm_builtin = F5(
-	function (a, b, c, d, e) {
-		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
-	});
-var $elm$core$Dict$Red = {$: 'Red'};
-var $elm$core$Dict$balance = F5(
-	function (color, key, value, left, right) {
-		if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Red')) {
-			var _v1 = right.a;
-			var rK = right.b;
-			var rV = right.c;
-			var rLeft = right.d;
-			var rRight = right.e;
-			if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
-				var _v3 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var lLeft = left.d;
-				var lRight = left.e;
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Red,
-					key,
-					value,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rLeft, rRight));
-			} else {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					color,
-					rK,
-					rV,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, left, rLeft),
-					rRight);
-			}
-		} else {
-			if ((((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) && (left.d.$ === 'RBNode_elm_builtin')) && (left.d.a.$ === 'Red')) {
-				var _v5 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var _v6 = left.d;
-				var _v7 = _v6.a;
-				var llK = _v6.b;
-				var llV = _v6.c;
-				var llLeft = _v6.d;
-				var llRight = _v6.e;
-				var lRight = left.e;
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Red,
-					lK,
-					lV,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, lRight, right));
-			} else {
-				return A5($elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
-			}
-		}
-	});
-var $elm$core$Basics$compare = _Utils_compare;
-var $elm$core$Dict$insertHelp = F3(
-	function (key, value, dict) {
-		if (dict.$ === 'RBEmpty_elm_builtin') {
-			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
-		} else {
-			var nColor = dict.a;
-			var nKey = dict.b;
-			var nValue = dict.c;
-			var nLeft = dict.d;
-			var nRight = dict.e;
-			var _v1 = A2($elm$core$Basics$compare, key, nKey);
-			switch (_v1.$) {
-				case 'LT':
-					return A5(
-						$elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						A3($elm$core$Dict$insertHelp, key, value, nLeft),
-						nRight);
-				case 'EQ':
-					return A5($elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
-				default:
-					return A5(
-						$elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						nLeft,
-						A3($elm$core$Dict$insertHelp, key, value, nRight));
-			}
-		}
-	});
-var $elm$core$Dict$insert = F3(
-	function (key, value, dict) {
-		var _v0 = A3($elm$core$Dict$insertHelp, key, value, dict);
-		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
-			var _v1 = _v0.a;
-			var k = _v0.b;
-			var v = _v0.c;
-			var l = _v0.d;
-			var r = _v0.e;
-			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
-		} else {
-			var x = _v0;
-			return x;
-		}
-	});
-var $elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		$elm$core$List$foldl,
-		F2(
-			function (_v0, dict) {
-				var key = _v0.a;
-				var value = _v0.b;
-				return A3($elm$core$Dict$insert, key, value, dict);
-			}),
-		$elm$core$Dict$empty,
-		assocs);
+var $elm$core$Array$toList = function (array) {
+	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
 };
-var $author$project$Data$data = $elm$core$Dict$fromList(
-	_List_fromArray(
-		[
-			_Utils_Tuple2(
-			1,
-			_Utils_Tuple2('Abate', 'To decrease; reduce')),
-			_Utils_Tuple2(
-			2,
-			_Utils_Tuple2('Abdicate', 'To give up a posiiton, right, or power')),
-			_Utils_Tuple2(
-			3,
-			_Utils_Tuple2('Aberrant', 'Deviating from what is normal')),
-			_Utils_Tuple2(
-			4,
-			_Utils_Tuple2('Abeyance', 'A temporary suppression or suspension')),
-			_Utils_Tuple2(
-			5,
-			_Utils_Tuple2('Abject', 'Miserable; pitiful')),
-			_Utils_Tuple2(
-			6,
-			_Utils_Tuple2('Abjure', 'To reject; abandon formally')),
-			_Utils_Tuple2(
-			7,
-			_Utils_Tuple2('Abscission', 'The act of cutting; the natural seperation of a leaf or other part of a plant')),
-			_Utils_Tuple2(
-			8,
-			_Utils_Tuple2('Abscond', 'To depart secretly')),
-			_Utils_Tuple2(
-			9,
-			_Utils_Tuple2('Abstemious', 'Moderate in appetite')),
-			_Utils_Tuple2(
-			10,
-			_Utils_Tuple2('Abstinence', 'The giving up of certain pleasures')),
-			_Utils_Tuple2(
-			11,
-			_Utils_Tuple2('Abysmal', 'Very bad')),
-			_Utils_Tuple2(
-			12,
-			_Utils_Tuple2('Accretion', 'Growth in size or increase in amount')),
-			_Utils_Tuple2(
-			13,
-			_Utils_Tuple2('Accrue', 'To accumulate; grow by additions')),
-			_Utils_Tuple2(
-			14,
-			_Utils_Tuple2('Adamant', 'Uncompromising; unyielding')),
-			_Utils_Tuple2(
-			15,
-			_Utils_Tuple2('Adjunct', 'Something added, attached, or joined')),
-			_Utils_Tuple2(
-			16,
-			_Utils_Tuple2('Admonish', 'To caution or reprimand')),
-			_Utils_Tuple2(
-			17,
-			_Utils_Tuple2('Adulterate', 'To corrupt or make impure')),
-			_Utils_Tuple2(
-			18,
-			_Utils_Tuple2('Aesthetic', 'Relating to beauty or art')),
-			_Utils_Tuple2(
-			19,
-			_Utils_Tuple2('Affected', 'Pretentious, phony')),
-			_Utils_Tuple2(
-			20,
-			_Utils_Tuple2('Affinity', 'Fondness; liking; similarity')),
-			_Utils_Tuple2(
-			21,
-			_Utils_Tuple2('Aggrandize', 'To make larger or greater')),
-			_Utils_Tuple2(
-			22,
-			_Utils_Tuple2('Aggregate', 'Amounting to a whole; total')),
-			_Utils_Tuple2(
-			23,
-			_Utils_Tuple2('Alacrity', 'Cheerful willingness; eagerness; speed')),
-			_Utils_Tuple2(
-			24,
-			_Utils_Tuple2('Alchemy', 'Medieval chemical philosophy based on chaning metal into gold; a seemingly magical power or process of transmutation')),
-			_Utils_Tuple2(
-			25,
-			_Utils_Tuple2('Allay', 'To lessen; ease; soothe')),
-			_Utils_Tuple2(
-			26,
-			_Utils_Tuple2('Alleviate', 'To relieve; improve partially')),
-			_Utils_Tuple2(
-			27,
-			_Utils_Tuple2('Alloy', 'A combination; a mixture of two or more metals')),
-			_Utils_Tuple2(
-			28,
-			_Utils_Tuple2('Allure', 'The power to entice by charm')),
-			_Utils_Tuple2(
-			29,
-			_Utils_Tuple2('Amalgamate', 'To combine into a unified whole')),
-			_Utils_Tuple2(
-			30,
-			_Utils_Tuple2('Ambiguous', 'Unclear or doubtful in meaning')),
-			_Utils_Tuple2(
-			31,
-			_Utils_Tuple2('Ambivalence', 'The state of having conflicting emotional attitudes')),
-			_Utils_Tuple2(
-			32,
-			_Utils_Tuple2('Ambrosia', 'Something delicious; the food of the gods')),
-			_Utils_Tuple2(
-			33,
-			_Utils_Tuple2('Ameliorate', 'To improve')),
-			_Utils_Tuple2(
-			34,
-			_Utils_Tuple2('Amenable', 'Agreeable; cooperative; suited')),
-			_Utils_Tuple2(
-			35,
-			_Utils_Tuple2('Amenity', 'Something that increases comfort')),
-			_Utils_Tuple2(
-			36,
-			_Utils_Tuple2('Amulet', 'Ornament worn as a charm against evil spirits')),
-			_Utils_Tuple2(
-			37,
-			_Utils_Tuple2('Anachronism', 'Something out of the proper time')),
-			_Utils_Tuple2(
-			38,
-			_Utils_Tuple2('Analgesic', 'Medication that reduces or eliminates pain')),
-			_Utils_Tuple2(
-			39,
-			_Utils_Tuple2('Analogous', 'Comparable')),
-			_Utils_Tuple2(
-			40,
-			_Utils_Tuple2('Anarchy', 'Absense of government; state of disorder')),
-			_Utils_Tuple2(
-			41,
-			_Utils_Tuple2('Anodyne', 'Something that calms or soothes pain')),
-			_Utils_Tuple2(
-			42,
-			_Utils_Tuple2('Anomalous', 'Irregular; deviating from the norm')),
-			_Utils_Tuple2(
-			43,
-			_Utils_Tuple2('Antecedent', 'Something that comes before')),
-			_Utils_Tuple2(
-			44,
-			_Utils_Tuple2('Antediluvian', 'Prehistoric')),
-			_Utils_Tuple2(
-			45,
-			_Utils_Tuple2('Antipathy', 'Dislike; hostility')),
-			_Utils_Tuple2(
-			46,
-			_Utils_Tuple2('Apathy', 'Indifference')),
-			_Utils_Tuple2(
-			47,
-			_Utils_Tuple2('Apex', 'The highest point')),
-			_Utils_Tuple2(
-			48,
-			_Utils_Tuple2('Apogee', 'The point in an orbit most distant from the body being orbited; the highest point')),
-			_Utils_Tuple2(
-			49,
-			_Utils_Tuple2('Apothegm', 'A terse, witty saying')),
-			_Utils_Tuple2(
-			50,
-			_Utils_Tuple2('Appease', 'To calm; pacify; placate')),
-			_Utils_Tuple2(
-			51,
-			_Utils_Tuple2('Appeallation', 'Name')),
-			_Utils_Tuple2(
-			52,
-			_Utils_Tuple2('Apposite', 'Strikingly appropriate and relevant')),
-			_Utils_Tuple2(
-			53,
-			_Utils_Tuple2('Apprise', 'To inform')),
-			_Utils_Tuple2(
-			54,
-			_Utils_Tuple2('Approbation', 'Praise; approval')),
-			_Utils_Tuple2(
-			55,
-			_Utils_Tuple2('Appropriate', 'To take possession for one\'s own use; confiscate')),
-			_Utils_Tuple2(
-			56,
-			_Utils_Tuple2('Apropos', 'Relevant')),
-			_Utils_Tuple2(
-			57,
-			_Utils_Tuple2('Arabesque', 'Ornate design featuring intertwined curves; a ballet position in which one leg is extended in back while the other supports the weight of the body')),
-			_Utils_Tuple2(
-			58,
-			_Utils_Tuple2('Archeology', 'The study of material evidence of past human life')),
-			_Utils_Tuple2(
-			59,
-			_Utils_Tuple2('Ardor', 'Great emotion or passion')),
-			_Utils_Tuple2(
-			60,
-			_Utils_Tuple2('Ardous', 'Extremely difficult; laborious')),
-			_Utils_Tuple2(
-			61,
-			_Utils_Tuple2('Argot', 'A specialized vocabulary used by a group')),
-			_Utils_Tuple2(
-			62,
-			_Utils_Tuple2('Arrest', 'To stop; to seize')),
-			_Utils_Tuple2(
-			63,
-			_Utils_Tuple2('Artifact', 'Item made by human craft')),
-			_Utils_Tuple2(
-			64,
-			_Utils_Tuple2('Artless', 'Guilesless; natural')),
-			_Utils_Tuple2(
-			65,
-			_Utils_Tuple2('Ascetic', 'One who practices self-denial')),
-			_Utils_Tuple2(
-			66,
-			_Utils_Tuple2('Asperity', 'Severity; harshness; irritability')),
-			_Utils_Tuple2(
-			67,
-			_Utils_Tuple2('Aspersion', 'Slander; false rumor')),
-			_Utils_Tuple2(
-			68,
-			_Utils_Tuple2('Assiduous', 'Diligent; hard-working')),
-			_Utils_Tuple2(
-			69,
-			_Utils_Tuple2('Assuage', 'To make less severe')),
-			_Utils_Tuple2(
-			70,
-			_Utils_Tuple2('Astringent', 'Harsh; severe')),
-			_Utils_Tuple2(
-			71,
-			_Utils_Tuple2('Asylum', 'Place of refuge or shelter')),
-			_Utils_Tuple2(
-			72,
-			_Utils_Tuple2('Atavism', 'Return of a trait after a period of absence')),
-			_Utils_Tuple2(
-			73,
-			_Utils_Tuple2('Attenuate', 'To weaken')),
-			_Utils_Tuple2(
-			74,
-			_Utils_Tuple2('Audacious', 'Bold; daring')),
-			_Utils_Tuple2(
-			75,
-			_Utils_Tuple2('Austere', 'Stern; unadorned')),
-			_Utils_Tuple2(
-			76,
-			_Utils_Tuple2('Autonomous', 'Self-governing; independent')),
-			_Utils_Tuple2(
-			77,
-			_Utils_Tuple2('Avarice', 'Greed')),
-			_Utils_Tuple2(
-			78,
-			_Utils_Tuple2('Aver', 'To affirm; declare to be true')),
-			_Utils_Tuple2(
-			79,
-			_Utils_Tuple2('Avocation', 'Secondary occupation')),
-			_Utils_Tuple2(
-			80,
-			_Utils_Tuple2('Avuncular', 'Like an uncle; benevolent and tolerant')),
-			_Utils_Tuple2(
-			81,
-			_Utils_Tuple2('Axiomatic', 'Taken for granted')),
-			_Utils_Tuple2(
-			82,
-			_Utils_Tuple2('Bacchanalian', 'Pertaining to riotous or drunken festivity; pertaining to revelry')),
-			_Utils_Tuple2(
-			83,
-			_Utils_Tuple2('Banal', 'Commonplace; trite')),
-			_Utils_Tuple2(
-			84,
-			_Utils_Tuple2('Banter', 'Playful conversation')),
-			_Utils_Tuple2(
-			85,
-			_Utils_Tuple2('Bard', 'Poet')),
-			_Utils_Tuple2(
-			86,
-			_Utils_Tuple2('Bawdy', 'Obscene')),
-			_Utils_Tuple2(
-			87,
-			_Utils_Tuple2('Beatify', 'To sanctify; to bless; to ascribe virtue to')),
-			_Utils_Tuple2(
-			88,
-			_Utils_Tuple2('Bedizen', 'To dress in a vulgar, showy manner')),
-			_Utils_Tuple2(
-			89,
-			_Utils_Tuple2('Behemoth', 'Huge creature; anything very large and powerful')),
-			_Utils_Tuple2(
-			90,
-			_Utils_Tuple2('Belie', 'To contradict; misinterpret; give a false impression')),
-			_Utils_Tuple2(
-			91,
-			_Utils_Tuple2('Beneficent', 'Kindly; doing good')),
-			_Utils_Tuple2(
-			92,
-			_Utils_Tuple2('Bifurcate', 'To divide into two parts')),
-			_Utils_Tuple2(
-			93,
-			_Utils_Tuple2('Blandishment', 'Flattery')),
-			_Utils_Tuple2(
-			94,
-			_Utils_Tuple2('Blase', 'Bored because of frequent indulgence; unconcerned')),
-			_Utils_Tuple2(
-			95,
-			_Utils_Tuple2('Bolster', 'To give a boost to; prop up; support')),
-			_Utils_Tuple2(
-			96,
-			_Utils_Tuple2('Bombastic', 'Pompous; using inflated language')),
-			_Utils_Tuple2(
-			97,
-			_Utils_Tuple2('Boorish', 'Rude; insensitive')),
-			_Utils_Tuple2(
-			98,
-			_Utils_Tuple2('Bovine', 'cowlike')),
-			_Utils_Tuple2(
-			99,
-			_Utils_Tuple2('Brazen', 'Bold; shameless')),
-			_Utils_Tuple2(
-			100,
-			_Utils_Tuple2('Broach', 'To mention for the first time')),
-			_Utils_Tuple2(
-			101,
-			_Utils_Tuple2('Bucolic', 'Characteristic of the countryside; rustic; pastoral')),
-			_Utils_Tuple2(
-			102,
-			_Utils_Tuple2('Burgeon', 'To flourish')),
-			_Utils_Tuple2(
-			103,
-			_Utils_Tuple2('Burnish', 'To polish')),
-			_Utils_Tuple2(
-			104,
-			_Utils_Tuple2('Buttress', 'To reinforce; support')),
-			_Utils_Tuple2(
-			105,
-			_Utils_Tuple2('Cacophonous', 'Unpleasant or harsh-sounding')),
-			_Utils_Tuple2(
-			106,
-			_Utils_Tuple2('Cadge', 'To beg; sponge')),
-			_Utils_Tuple2(
-			107,
-			_Utils_Tuple2('Callous', 'Thick-skinned; insensitive')),
-			_Utils_Tuple2(
-			108,
-			_Utils_Tuple2('Calumny', 'Flase and malicious accusation; slander')),
-			_Utils_Tuple2(
-			109,
-			_Utils_Tuple2('Canard', 'False, deliberately misleading story')),
-			_Utils_Tuple2(
-			110,
-			_Utils_Tuple2('Canon', 'An established principle; a basis or standard for judgement; a group of literary works')),
-			_Utils_Tuple2(
-			111,
-			_Utils_Tuple2('Cant', 'Insincere talk; language of a particular group')),
-			_Utils_Tuple2(
-			112,
-			_Utils_Tuple2('Cantankerous', 'Irritable; ill-humored')),
-			_Utils_Tuple2(
-			113,
-			_Utils_Tuple2('Capricious', 'Fickle')),
-			_Utils_Tuple2(
-			114,
-			_Utils_Tuple2('Captious', 'Faultfinding; intended to entrap, as in an argument')),
-			_Utils_Tuple2(
-			115,
-			_Utils_Tuple2('Cardinal', 'Of foremost importance')),
-			_Utils_Tuple2(
-			116,
-			_Utils_Tuple2('Carnal', 'Of the flesh or body; related to physical appetites')),
-			_Utils_Tuple2(
-			117,
-			_Utils_Tuple2('Carping', 'To find fault; complain')),
-			_Utils_Tuple2(
-			118,
-			_Utils_Tuple2('Cartography', 'Science of making maps')),
-			_Utils_Tuple2(
-			119,
-			_Utils_Tuple2('Caste', 'Any of the hereditary social classes of Hindu society; social stratification')),
-			_Utils_Tuple2(
-			120,
-			_Utils_Tuple2('Castigation', 'Punishment; chastisement; criticism')),
-			_Utils_Tuple2(
-			121,
-			_Utils_Tuple2('Cataclysm', 'A violent upheaval that causes great destruction and change')),
-			_Utils_Tuple2(
-			122,
-			_Utils_Tuple2('Catalyst', 'Something causing change')),
-			_Utils_Tuple2(
-			123,
-			_Utils_Tuple2('Categorical', 'Absolute; without exception')),
-			_Utils_Tuple2(
-			124,
-			_Utils_Tuple2('Caucus', 'Smaller group within an organization')),
-			_Utils_Tuple2(
-			125,
-			_Utils_Tuple2('Causal', 'Involving a cause')),
-			_Utils_Tuple2(
-			126,
-			_Utils_Tuple2('Caustic', 'Sarcastically biting; burning')),
-			_Utils_Tuple2(
-			127,
-			_Utils_Tuple2('Celestial', 'Concerning the sky or heavens; sublime')),
-			_Utils_Tuple2(
-			128,
-			_Utils_Tuple2('Centrifugal', 'Moving away from a center')),
-			_Utils_Tuple2(
-			129,
-			_Utils_Tuple2('Centripetal', 'Moving or directed toward a center')),
-			_Utils_Tuple2(
-			130,
-			_Utils_Tuple2('Champion', 'To defend or support')),
-			_Utils_Tuple2(
-			131,
-			_Utils_Tuple2('Chasten', 'To correct by punishment or reproof; to restrain or subdue')),
-			_Utils_Tuple2(
-			132,
-			_Utils_Tuple2('Chicanery', 'Trickery; fraud')),
-			_Utils_Tuple2(
-			133,
-			_Utils_Tuple2('Chivalry', 'The qualities idealized by knighthood such as bravery and gallantry towards women')),
-			_Utils_Tuple2(
-			134,
-			_Utils_Tuple2('Churlish', 'Rude; boorish')),
-			_Utils_Tuple2(
-			135,
-			_Utils_Tuple2('Circuitous', 'Roundabout')),
-			_Utils_Tuple2(
-			136,
-			_Utils_Tuple2('Clairvoyant', 'One who can predict the future; psychic')),
-			_Utils_Tuple2(
-			137,
-			_Utils_Tuple2('Clamor', 'Noisy outcry')),
-			_Utils_Tuple2(
-			138,
-			_Utils_Tuple2('Clique', 'A small, exclusive group')),
-			_Utils_Tuple2(
-			139,
-			_Utils_Tuple2('Cloister', 'To confine; seclude')),
-			_Utils_Tuple2(
-			140,
-			_Utils_Tuple2('Coagulate', 'Thicken; congeal')),
-			_Utils_Tuple2(
-			141,
-			_Utils_Tuple2('Coalesce', 'To cause to become one')),
-			_Utils_Tuple2(
-			142,
-			_Utils_Tuple2('Coda', 'A concluding part of a literary or musical composition; something that summarizes or concludes')),
-			_Utils_Tuple2(
-			143,
-			_Utils_Tuple2('Codify', 'To sytematize')),
-			_Utils_Tuple2(
-			144,
-			_Utils_Tuple2('Cognizant', 'Informed; conscious; aware')),
-			_Utils_Tuple2(
-			145,
-			_Utils_Tuple2('Collage', 'Artistic composition of materials pasted over a surface; an assemblage of diverse elements')),
-			_Utils_Tuple2(
-			146,
-			_Utils_Tuple2('Commensurate', 'Proportional')),
-			_Utils_Tuple2(
-			147,
-			_Utils_Tuple2('Compendium', 'Brief, comprehensive summary')),
-			_Utils_Tuple2(
-			148,
-			_Utils_Tuple2('Complacent', 'Self-satisfied')),
-			_Utils_Tuple2(
-			149,
-			_Utils_Tuple2('Complaisant', 'Overly polite; willing to please; obliging')),
-			_Utils_Tuple2(
-			150,
-			_Utils_Tuple2('Complement', 'Something that completes or makes up a whole')),
-			_Utils_Tuple2(
-			151,
-			_Utils_Tuple2('Compliant', 'Yielding')),
-			_Utils_Tuple2(
-			152,
-			_Utils_Tuple2('Compunction', 'Uneasiness caused by guilt')),
-			_Utils_Tuple2(
-			153,
-			_Utils_Tuple2('Concave', 'Curving inward')),
-			_Utils_Tuple2(
-			154,
-			_Utils_Tuple2('Conciliatory', 'Overcoming distrust or hostility')),
-			_Utils_Tuple2(
-			155,
-			_Utils_Tuple2('Concoct', 'To invent')),
-			_Utils_Tuple2(
-			156,
-			_Utils_Tuple2('Concomitant', 'Existing concurrently')),
-			_Utils_Tuple2(
-			157,
-			_Utils_Tuple2('Condone', 'To overlook voluntarily; forgive')),
-			_Utils_Tuple2(
-			158,
-			_Utils_Tuple2('Confound', 'To baffle; perplex; mix up')),
-			_Utils_Tuple2(
-			159,
-			_Utils_Tuple2('Congenial', 'Similar in tastes and habits; friendly; suited to')),
-			_Utils_Tuple2(
-			160,
-			_Utils_Tuple2('Conjugal', 'Pertaining to marriage agreement')),
-			_Utils_Tuple2(
-			161,
-			_Utils_Tuple2('Connoisseur', 'A person possessing expert knowledge or training; a person of informed and discriminating taste')),
-			_Utils_Tuple2(
-			162,
-			_Utils_Tuple2('Conscript', 'Person compulsorily enrolled for military service')),
-			_Utils_Tuple2(
-			163,
-			_Utils_Tuple2('Consecrate', 'To declare sacred')),
-			_Utils_Tuple2(
-			164,
-			_Utils_Tuple2('Contend', 'To assert')),
-			_Utils_Tuple2(
-			165,
-			_Utils_Tuple2('Contentious', 'Quarrelsome; causing quarrels')),
-			_Utils_Tuple2(
-			166,
-			_Utils_Tuple2('Contiguous', 'Touching; neighboring; connecting without a break')),
-			_Utils_Tuple2(
-			167,
-			_Utils_Tuple2('Continence', 'Self-control; abstention from sexual activity')),
-			_Utils_Tuple2(
-			168,
-			_Utils_Tuple2('Contrite', 'Very sorrowful for a wrong')),
-			_Utils_Tuple2(
-			169,
-			_Utils_Tuple2('Contumacious', 'Disobedient; rebellious')),
-			_Utils_Tuple2(
-			170,
-			_Utils_Tuple2('Conundrum', 'Riddle; puzzle with no solution')),
-			_Utils_Tuple2(
-			171,
-			_Utils_Tuple2('Convention', 'Practice widely observed in a group; custom; accepted technique or device')),
-			_Utils_Tuple2(
-			172,
-			_Utils_Tuple2('Converge', 'To approach; come together; tend to meet')),
-			_Utils_Tuple2(
-			173,
-			_Utils_Tuple2('Convex', 'Curved outwards')),
-			_Utils_Tuple2(
-			174,
-			_Utils_Tuple2('Convivial', 'Sociable')),
-			_Utils_Tuple2(
-			175,
-			_Utils_Tuple2('Convoluted', 'Twisted; complicated')),
-			_Utils_Tuple2(
-			176,
-			_Utils_Tuple2('Copious', 'Abundant; plentiful')),
-			_Utils_Tuple2(
-			177,
-			_Utils_Tuple2('Coquette', 'Woman who flirts')),
-			_Utils_Tuple2(
-			178,
-			_Utils_Tuple2('Cornucopia', 'Horn overflowing with fruit and grain; state of abundance')),
-			_Utils_Tuple2(
-			179,
-			_Utils_Tuple2('Cosmology', 'Study of the universe as a totality; theory of the origin and structure of the universe')),
-			_Utils_Tuple2(
-			180,
-			_Utils_Tuple2('Covert', 'Hidden; secret')),
-			_Utils_Tuple2(
-			181,
-			_Utils_Tuple2('Covetous', 'Desiring something owned by another')),
-			_Utils_Tuple2(
-			182,
-			_Utils_Tuple2('Cozen', 'To mislead by trick or fraud; deceive')),
-			_Utils_Tuple2(
-			183,
-			_Utils_Tuple2('Craven', 'Cowardly')),
-			_Utils_Tuple2(
-			184,
-			_Utils_Tuple2('Credence', 'Acceptance of something as true')),
-			_Utils_Tuple2(
-			185,
-			_Utils_Tuple2('Credo', 'Statement of belief or principle; creed')),
-			_Utils_Tuple2(
-			186,
-			_Utils_Tuple2('Daunt', 'To discourage; intimidate; dishearten')),
-			_Utils_Tuple2(
-			187,
-			_Utils_Tuple2('Dearth', 'Scarcity')),
-			_Utils_Tuple2(
-			188,
-			_Utils_Tuple2('Debauchery', 'Corruption')),
-			_Utils_Tuple2(
-			189,
-			_Utils_Tuple2('Decorum', 'Proper behavior')),
-			_Utils_Tuple2(
-			190,
-			_Utils_Tuple2('Defame', 'To malign; harm someone\'s reputation')),
-			_Utils_Tuple2(
-			191,
-			_Utils_Tuple2('Default', 'To fail to act')),
-			_Utils_Tuple2(
-			192,
-			_Utils_Tuple2('Deference', 'Respect; regard for another\'s wish')),
-			_Utils_Tuple2(
-			193,
-			_Utils_Tuple2('Defunct', 'No longer existing')),
-			_Utils_Tuple2(
-			194,
-			_Utils_Tuple2('Delineate', 'To represent or depict')),
-			_Utils_Tuple2(
-			195,
-			_Utils_Tuple2('Demographic', 'Related to population balance')),
-			_Utils_Tuple2(
-			196,
-			_Utils_Tuple2('Demotic', 'Pertaining to people')),
-			_Utils_Tuple2(
-			197,
-			_Utils_Tuple2('Demur', 'To express doubt')),
-			_Utils_Tuple2(
-			198,
-			_Utils_Tuple2('Denigrate', 'To slur someone\'s reputation')),
-			_Utils_Tuple2(
-			199,
-			_Utils_Tuple2('Denizen', 'An inhabitant; a regular visitor')),
-			_Utils_Tuple2(
-			200,
-			_Utils_Tuple2('Denouement', 'Outcome; unraveling of the plot of a play or work of literature')),
-			_Utils_Tuple2(
-			201,
-			_Utils_Tuple2('Deride', 'To mock')),
-			_Utils_Tuple2(
-			202,
-			_Utils_Tuple2('Derivative', 'Something derived; unoriginal')),
-			_Utils_Tuple2(
-			203,
-			_Utils_Tuple2('Desiccate', 'To dry completely')),
-			_Utils_Tuple2(
-			204,
-			_Utils_Tuple2('Desuetude', 'State of disuse')),
-			_Utils_Tuple2(
-			205,
-			_Utils_Tuple2('Desultory', 'Random; disconnected; rambling')),
-			_Utils_Tuple2(
-			206,
-			_Utils_Tuple2('Deterrent', 'Something that discourages or hinders')),
-			_Utils_Tuple2(
-			207,
-			_Utils_Tuple2('Detraction', 'The act of taking away; derogatory comment on a person\'s character')),
-			_Utils_Tuple2(
-			208,
-			_Utils_Tuple2('Diaphanous', 'Transparent; fine-textured; insubstantial; vague')),
-			_Utils_Tuple2(
-			209,
-			_Utils_Tuple2('Diatribe', 'Bitter verbal attack')),
-			_Utils_Tuple2(
-			210,
-			_Utils_Tuple2('Dichotomy', 'Division into two usually contradictory parts')),
-			_Utils_Tuple2(
-			211,
-			_Utils_Tuple2('Diffidence', 'Shyness; lack of confidence')),
-			_Utils_Tuple2(
-			212,
-			_Utils_Tuple2('Diffuse', 'To spread out')),
-			_Utils_Tuple2(
-			213,
-			_Utils_Tuple2('Digression', 'Act of straying from the main point')),
-			_Utils_Tuple2(
-			214,
-			_Utils_Tuple2('Dirge', 'Funeral Hymn')),
-			_Utils_Tuple2(
-			215,
-			_Utils_Tuple2('Disabuse', 'To free from a misconception')),
-			_Utils_Tuple2(
-			216,
-			_Utils_Tuple2('Discerning', 'Perceptive; exhibiting keen insight and good judgement')),
-			_Utils_Tuple2(
-			217,
-			_Utils_Tuple2('Discomfit', 'To make uneasy; disconcert')),
-			_Utils_Tuple2(
-			218,
-			_Utils_Tuple2('Discordant', 'Not in tune')),
-			_Utils_Tuple2(
-			219,
-			_Utils_Tuple2('Discredit', 'To dishonor; disgrace; cause to be doubted')),
-			_Utils_Tuple2(
-			220,
-			_Utils_Tuple2('Discrepancy', 'Difference between')),
-			_Utils_Tuple2(
-			221,
-			_Utils_Tuple2('Discrete', 'Constituting a seperate thing; distinct')),
-			_Utils_Tuple2(
-			222,
-			_Utils_Tuple2('Discretion', 'Quality of showing self-restraint in speech or actions; circumspection; freedom to act on one\'s own')),
-			_Utils_Tuple2(
-			223,
-			_Utils_Tuple2('Disingenuous', 'Not candid; crafty')),
-			_Utils_Tuple2(
-			224,
-			_Utils_Tuple2('Disinterested', 'Unprejudiced; objective')),
-			_Utils_Tuple2(
-			225,
-			_Utils_Tuple2('Disjointed', 'Lacking order or coherence; dislocated')),
-			_Utils_Tuple2(
-			226,
-			_Utils_Tuple2('Dismiss', 'Put away from consideration; reject')),
-			_Utils_Tuple2(
-			227,
-			_Utils_Tuple2('Disparage', 'To belittle')),
-			_Utils_Tuple2(
-			228,
-			_Utils_Tuple2('Disparate', 'Dissimilar')),
-			_Utils_Tuple2(
-			229,
-			_Utils_Tuple2('Dissemble', 'To pretend; disguise one\'s motives')),
-			_Utils_Tuple2(
-			230,
-			_Utils_Tuple2('Disseminate', 'To spread; scatter; disperse')),
-			_Utils_Tuple2(
-			231,
-			_Utils_Tuple2('Dissident', 'Person who disagrees about beliefs, etc')),
-			_Utils_Tuple2(
-			232,
-			_Utils_Tuple2('Dissolution', 'Disintegration; debauchery')),
-			_Utils_Tuple2(
-			233,
-			_Utils_Tuple2('Dissonance', 'Discord; lack of harmony')),
-			_Utils_Tuple2(
-			234,
-			_Utils_Tuple2('Distend', 'To expand; swell out')),
-			_Utils_Tuple2(
-			235,
-			_Utils_Tuple2('Distill', 'Extract the essential elements')),
-			_Utils_Tuple2(
-			236,
-			_Utils_Tuple2('Distrait', 'Inattentive; preoccupied')),
-			_Utils_Tuple2(
-			237,
-			_Utils_Tuple2('Diverge', 'To vary; go in different directions from the same point')),
-			_Utils_Tuple2(
-			238,
-			_Utils_Tuple2('Divest', 'To strip; deprive; rid')),
-			_Utils_Tuple2(
-			239,
-			_Utils_Tuple2('Divulge', 'To make known something that is secret')),
-			_Utils_Tuple2(
-			240,
-			_Utils_Tuple2('Doctrinaire', 'Relating to a person who cannot compromise about points of theory or doctrine; dogmatic; unyielding')),
-			_Utils_Tuple2(
-			241,
-			_Utils_Tuple2('Document', 'To provide with written evidence to support')),
-			_Utils_Tuple2(
-			242,
-			_Utils_Tuple2('Doggerel', 'Poor verse')),
-			_Utils_Tuple2(
-			243,
-			_Utils_Tuple2('Dogmatic', 'Stating opinions without proof')),
-			_Utils_Tuple2(
-			244,
-			_Utils_Tuple2('Dormant', 'Inactive')),
-			_Utils_Tuple2(
-			245,
-			_Utils_Tuple2('Dross', 'Waste; worthless matter; trivial matter')),
-			_Utils_Tuple2(
-			246,
-			_Utils_Tuple2('Dupe', 'To deceive; trick')),
-			_Utils_Tuple2(
-			247,
-			_Utils_Tuple2('Ebullient', 'Exhilarated; enthusiastic')),
-			_Utils_Tuple2(
-			248,
-			_Utils_Tuple2('Eclectic', 'Selecting from various sources')),
-			_Utils_Tuple2(
-			249,
-			_Utils_Tuple2('Effervesence', 'State of high spirits or liveliness; the process of bubbling as gas escapes')),
-			_Utils_Tuple2(
-			250,
-			_Utils_Tuple2('Effete', 'Depleted of vitality; overrefined; decadent')),
-			_Utils_Tuple2(
-			251,
-			_Utils_Tuple2('Efficacy', 'Efficiency; effectiveness')),
-			_Utils_Tuple2(
-			252,
-			_Utils_Tuple2('Effrontery', 'Shameless boldness; presumptuousness')),
-			_Utils_Tuple2(
-			253,
-			_Utils_Tuple2('Egoism', 'The tendency to see things in relation to oneself; self-centeredness')),
-			_Utils_Tuple2(
-			254,
-			_Utils_Tuple2('Egotistical', 'Excessively self-centered; conceited')),
-			_Utils_Tuple2(
-			255,
-			_Utils_Tuple2('Elegy', 'A poem or song expressing lamentation')),
-			_Utils_Tuple2(
-			256,
-			_Utils_Tuple2('Elicit', 'To provoke; draw out')),
-			_Utils_Tuple2(
-			257,
-			_Utils_Tuple2('Elixir', 'A substance believed to have the power to cure ills')),
-			_Utils_Tuple2(
-			258,
-			_Utils_Tuple2('Elysian', 'Blissful; delightful')),
-			_Utils_Tuple2(
-			259,
-			_Utils_Tuple2('Emaciated', 'Thin and wasted')),
-			_Utils_Tuple2(
-			260,
-			_Utils_Tuple2('Embellish', 'To adorn; decorate; enhance; make more attractive by adding details')),
-			_Utils_Tuple2(
-			261,
-			_Utils_Tuple2('Emollient', 'Soothing; mollifying')),
-			_Utils_Tuple2(
-			262,
-			_Utils_Tuple2('Empirical', 'Derived from observation or experiment')),
-			_Utils_Tuple2(
-			263,
-			_Utils_Tuple2('Emulate', 'To imitate; copy')),
-			_Utils_Tuple2(
-			264,
-			_Utils_Tuple2('Encomium', 'A formal expression of praise')),
-			_Utils_Tuple2(
-			265,
-			_Utils_Tuple2('Endemic', 'Inherent; belonging to an area')),
-			_Utils_Tuple2(
-			266,
-			_Utils_Tuple2('Enervate', 'To weaken')),
-			_Utils_Tuple2(
-			267,
-			_Utils_Tuple2('Engender', 'To cuase; produce')),
-			_Utils_Tuple2(
-			268,
-			_Utils_Tuple2('Enhance', 'To increase; improve')),
-			_Utils_Tuple2(
-			269,
-			_Utils_Tuple2('Entomology', 'The scientific study of insects')),
-			_Utils_Tuple2(
-			270,
-			_Utils_Tuple2('Enunciate', 'To pronounce clearly')),
-			_Utils_Tuple2(
-			271,
-			_Utils_Tuple2('Ephemeral', 'Short-lived; fleeting')),
-			_Utils_Tuple2(
-			272,
-			_Utils_Tuple2('Epistemology', 'Branch of philosophy that examines the nature of knowledge')),
-			_Utils_Tuple2(
-			273,
-			_Utils_Tuple2('Equable', 'Steady; unvarying; serene')),
-			_Utils_Tuple2(
-			274,
-			_Utils_Tuple2('Equanimity', 'Compsure; calmness')),
-			_Utils_Tuple2(
-			275,
-			_Utils_Tuple2('Equivocate', 'To intentionally use vague language')),
-			_Utils_Tuple2(
-			276,
-			_Utils_Tuple2('Errant', 'Mistaken; straying from the proper course')),
-			_Utils_Tuple2(
-			277,
-			_Utils_Tuple2('Erudite', 'Learned; scholarly')),
-			_Utils_Tuple2(
-			278,
-			_Utils_Tuple2('Esoteric', 'Hard to understand; known only to a few')),
-			_Utils_Tuple2(
-			279,
-			_Utils_Tuple2('Essay', 'To make an attempt; subject to a test')),
-			_Utils_Tuple2(
-			280,
-			_Utils_Tuple2('Estimable', 'Admirable; possible to estimate')),
-			_Utils_Tuple2(
-			281,
-			_Utils_Tuple2('Ethnocentric', 'Based on the attitude that one\'s group is superior')),
-			_Utils_Tuple2(
-			282,
-			_Utils_Tuple2('Etiology', 'Causes or origins')),
-			_Utils_Tuple2(
-			283,
-			_Utils_Tuple2('Etymology', 'Origin and history of a word')),
-			_Utils_Tuple2(
-			284,
-			_Utils_Tuple2('Eugenics', 'Study of factors that influence the hereditary qualities of the human race and ways to improve these qualities')),
-			_Utils_Tuple2(
-			285,
-			_Utils_Tuple2('Eulogy', 'High praise, especially of a person who has recently died')),
-			_Utils_Tuple2(
-			286,
-			_Utils_Tuple2('Euphenism', 'Use of agreeable or inoffensive language in place of unpleasant or offensive language')),
-			_Utils_Tuple2(
-			287,
-			_Utils_Tuple2('Euphoria', 'A feeling of extreme happiness')),
-			_Utils_Tuple2(
-			288,
-			_Utils_Tuple2('Euthanasia', 'Mercy killing')),
-			_Utils_Tuple2(
-			289,
-			_Utils_Tuple2('Evince', 'To show plainly; be an indication of')),
-			_Utils_Tuple2(
-			290,
-			_Utils_Tuple2('Evocative', 'Tending to call to mind or produce a reaction')),
-			_Utils_Tuple2(
-			291,
-			_Utils_Tuple2('Exacerbate', 'To aggravate; make worse')),
-			_Utils_Tuple2(
-			292,
-			_Utils_Tuple2('Exact', 'To force the payment of; demand and obtain by authority')),
-			_Utils_Tuple2(
-			293,
-			_Utils_Tuple2('Exculpate', 'To clear of blame; vindicate')),
-			_Utils_Tuple2(
-			294,
-			_Utils_Tuple2('Execrable', 'Detestable; abhorrent')),
-			_Utils_Tuple2(
-			295,
-			_Utils_Tuple2('Exhort', 'To urge by strong appeals')),
-			_Utils_Tuple2(
-			296,
-			_Utils_Tuple2('Exigency', 'Crisis; urgent requirements')),
-			_Utils_Tuple2(
-			297,
-			_Utils_Tuple2('Existential', 'Having to do with existence; based on experience; having to do with the philosophy of existenialism')),
-			_Utils_Tuple2(
-			298,
-			_Utils_Tuple2('Exorcise', 'To expel evil spirits; free from bad influences')),
-			_Utils_Tuple2(
-			299,
-			_Utils_Tuple2('Expatiate', 'To speak or write at length')),
-			_Utils_Tuple2(
-			300,
-			_Utils_Tuple2('Expatriate', 'To send into exile')),
-			_Utils_Tuple2(
-			301,
-			_Utils_Tuple2('Expiate', 'To atone for')),
-			_Utils_Tuple2(
-			302,
-			_Utils_Tuple2('Explicate', 'To explain; interpret; clarify')),
-			_Utils_Tuple2(
-			303,
-			_Utils_Tuple2('Expository', 'Explanatory')),
-			_Utils_Tuple2(
-			304,
-			_Utils_Tuple2('Extant', 'In existence; not lost')),
-			_Utils_Tuple2(
-			305,
-			_Utils_Tuple2('extemporaneous', 'Unrehearsed')),
-			_Utils_Tuple2(
-			306,
-			_Utils_Tuple2('Extirpate', 'To root up; to destroy')),
-			_Utils_Tuple2(
-			307,
-			_Utils_Tuple2('Extraneous', 'Not essential')),
-			_Utils_Tuple2(
-			308,
-			_Utils_Tuple2('Extrapolation', 'The act of estimation by projecting known information')),
-			_Utils_Tuple2(
-			309,
-			_Utils_Tuple2('Extrinsic', 'Not inherent or essential')),
-			_Utils_Tuple2(
-			310,
-			_Utils_Tuple2('Facetious', 'Humorous')),
-			_Utils_Tuple2(
-			311,
-			_Utils_Tuple2('Facilitate', 'To make less difficult')),
-			_Utils_Tuple2(
-			312,
-			_Utils_Tuple2('Factotum', 'A person who does all sorts of work; a handyman')),
-			_Utils_Tuple2(
-			313,
-			_Utils_Tuple2('Fallacious', 'Based on a false idea or fact; misleading')),
-			_Utils_Tuple2(
-			314,
-			_Utils_Tuple2('Fallow', 'Plowed but not sowed; uncultivated')),
-			_Utils_Tuple2(
-			315,
-			_Utils_Tuple2('Fatuous', 'Foolishly self-satisfied')),
-			_Utils_Tuple2(
-			316,
-			_Utils_Tuple2('Fauna', 'Animals of a period or region')),
-			_Utils_Tuple2(
-			317,
-			_Utils_Tuple2('Fawning', 'Seeking favor by flattering')),
-			_Utils_Tuple2(
-			318,
-			_Utils_Tuple2('Felicitous', 'Suitably expressed; appropriate; well chosen')),
-			_Utils_Tuple2(
-			319,
-			_Utils_Tuple2('Feral', 'Existing in a wild or untamed state')),
-			_Utils_Tuple2(
-			320,
-			_Utils_Tuple2('Fervor', 'Warmth and intensity of emotion')),
-			_Utils_Tuple2(
-			321,
-			_Utils_Tuple2('Fetid', 'Having a bad smell')),
-			_Utils_Tuple2(
-			322,
-			_Utils_Tuple2('Fetter', 'To bind; confine')),
-			_Utils_Tuple2(
-			323,
-			_Utils_Tuple2('Fiat', 'Arbitrary order; authorization')),
-			_Utils_Tuple2(
-			324,
-			_Utils_Tuple2('Fidelity', 'Loyalty; exact correspondence')),
-			_Utils_Tuple2(
-			325,
-			_Utils_Tuple2('Filibuster', 'Use of obstructive tactics in a legislature to block passage of a law')),
-			_Utils_Tuple2(
-			326,
-			_Utils_Tuple2('Finesse', 'To handle with a deceptive or evasive strategy; to use finesse, that is, refinement in performance')),
-			_Utils_Tuple2(
-			327,
-			_Utils_Tuple2('Fissure', 'Crevice')),
-			_Utils_Tuple2(
-			328,
-			_Utils_Tuple2('Flag', 'To droop; grow weak')),
-			_Utils_Tuple2(
-			329,
-			_Utils_Tuple2('Fledgling', 'Beginner; novice')),
-			_Utils_Tuple2(
-			330,
-			_Utils_Tuple2('Flora', 'Plants of a region or era')),
-			_Utils_Tuple2(
-			331,
-			_Utils_Tuple2('Florid', 'Ruddy; reddish; flowery')),
-			_Utils_Tuple2(
-			332,
-			_Utils_Tuple2('Flourish', 'An embellishment or ornamentation')),
-			_Utils_Tuple2(
-			333,
-			_Utils_Tuple2('Flout', 'To treat scornfully')),
-			_Utils_Tuple2(
-			334,
-			_Utils_Tuple2('Flux', 'Flowing; a continuous moving')),
-			_Utils_Tuple2(
-			335,
-			_Utils_Tuple2('Foment', 'To incite; arouse')),
-			_Utils_Tuple2(
-			336,
-			_Utils_Tuple2('Forbearance', 'Patience')),
-			_Utils_Tuple2(
-			337,
-			_Utils_Tuple2('Forestall', 'To prevent; delay')),
-			_Utils_Tuple2(
-			338,
-			_Utils_Tuple2('Formidable', 'Menacing; threatening')),
-			_Utils_Tuple2(
-			339,
-			_Utils_Tuple2('Forswear', 'To renounce; repudiate')),
-			_Utils_Tuple2(
-			340,
-			_Utils_Tuple2('Founder', 'To sink; fail; collapse')),
-			_Utils_Tuple2(
-			341,
-			_Utils_Tuple2('Fracas', 'A loud quarrel; brawl')),
-			_Utils_Tuple2(
-			342,
-			_Utils_Tuple2('Fractious', 'Quarrelsome; unruly; rebellious')),
-			_Utils_Tuple2(
-			343,
-			_Utils_Tuple2('Fresco', 'A painting done on plaster')),
-			_Utils_Tuple2(
-			344,
-			_Utils_Tuple2('Frieze', 'Ornamental band on a wall')),
-			_Utils_Tuple2(
-			345,
-			_Utils_Tuple2('Froward', 'Stubbornly contrary; obstinately disobedient')),
-			_Utils_Tuple2(
-			346,
-			_Utils_Tuple2('Frugality', 'Thrift')),
-			_Utils_Tuple2(
-			347,
-			_Utils_Tuple2('Fulminate', 'To attack loudly; denounce')),
-			_Utils_Tuple2(
-			348,
-			_Utils_Tuple2('Fulsome', 'So excessive as to be disgusting')),
-			_Utils_Tuple2(
-			349,
-			_Utils_Tuple2('Fusion', 'Union; synthesis')),
-			_Utils_Tuple2(
-			350,
-			_Utils_Tuple2('Futile', 'Ineffective; useless; fruitless')),
-			_Utils_Tuple2(
-			351,
-			_Utils_Tuple2('Gainsay', 'To deny; dispute; oppose')),
-			_Utils_Tuple2(
-			352,
-			_Utils_Tuple2('Gambol', 'To frolic; leap playfully')),
-			_Utils_Tuple2(
-			353,
-			_Utils_Tuple2('Garrulous', 'Very talkative; wordy')),
-			_Utils_Tuple2(
-			354,
-			_Utils_Tuple2('Gauche', 'Coarse and uncouth; clumsy')),
-			_Utils_Tuple2(
-			355,
-			_Utils_Tuple2('Geniality', 'Cheerfulness; kindliness; sociability')),
-			_Utils_Tuple2(
-			356,
-			_Utils_Tuple2('Gerrymander', 'To divide an area into voting districts in a way that favors a political party')),
-			_Utils_Tuple2(
-			357,
-			_Utils_Tuple2('Glib', 'Fluent in an insincere way; offhand')),
-			_Utils_Tuple2(
-			358,
-			_Utils_Tuple2('goad', 'To prod; urge on')),
-			_Utils_Tuple2(
-			359,
-			_Utils_Tuple2('Gossamer', 'Sheer; light and delicate, like cobwebs')),
-			_Utils_Tuple2(
-			360,
-			_Utils_Tuple2('Gouge', 'To tear out; scoop out; overcharge')),
-			_Utils_Tuple2(
-			361,
-			_Utils_Tuple2('Grandiloquent', 'Pompous; bombastic')),
-			_Utils_Tuple2(
-			362,
-			_Utils_Tuple2('Gregarious', 'Sociable')),
-			_Utils_Tuple2(
-			363,
-			_Utils_Tuple2('Grouse', 'To complain')),
-			_Utils_Tuple2(
-			364,
-			_Utils_Tuple2('Guileless', 'Free of cunning or deceit; artless')),
-			_Utils_Tuple2(
-			365,
-			_Utils_Tuple2('Guise', 'Outward appearance; false appearance; pretense')),
-			_Utils_Tuple2(
-			366,
-			_Utils_Tuple2('Gullible', 'Easily deceived')),
-			_Utils_Tuple2(
-			367,
-			_Utils_Tuple2('Gustatory', 'Affecting the sense of taste')),
-			_Utils_Tuple2(
-			368,
-			_Utils_Tuple2('Halcyon', 'Calm and peaceful; happy; golden; prosperous')),
-			_Utils_Tuple2(
-			369,
-			_Utils_Tuple2('Hallowed', 'Holy; sacred')),
-			_Utils_Tuple2(
-			370,
-			_Utils_Tuple2('Harrangue', 'Long, pompous speech; tirade')),
-			_Utils_Tuple2(
-			371,
-			_Utils_Tuple2('Harrowing', 'Extremely distressing; terrifying')),
-			_Utils_Tuple2(
-			372,
-			_Utils_Tuple2('Herbivorous', 'Relating to a herbivore, an animal that feeds mainly on plants')),
-			_Utils_Tuple2(
-			373,
-			_Utils_Tuple2('Hermetic', 'Tightly sealed; magical')),
-			_Utils_Tuple2(
-			374,
-			_Utils_Tuple2('Heterodox', 'Unorthodox; not widely accepted')),
-			_Utils_Tuple2(
-			375,
-			_Utils_Tuple2('Hieroglyphics', 'A system of writing in which pictorial symbols represent meaning or sounds; writing or symbols that are difficult to decipher; the symbols used in advanced mathematics')),
-			_Utils_Tuple2(
-			376,
-			_Utils_Tuple2('Hirsute', 'Covered with hair')),
-			_Utils_Tuple2(
-			377,
-			_Utils_Tuple2('Histrionic', 'Relating to exaggerated emotional behavior calculated for effect; theatrical arts or performances')),
-			_Utils_Tuple2(
-			378,
-			_Utils_Tuple2('Homeostasis', 'Automatic maintenance by an organsim of normal temperature, chemical balance, etc within itself')),
-			_Utils_Tuple2(
-			379,
-			_Utils_Tuple2('Homily', 'Sermon; tedious moralizing lecture; platitude')),
-			_Utils_Tuple2(
-			380,
-			_Utils_Tuple2('Homogenous', 'Composed of identical parts; uniform in composition')),
-			_Utils_Tuple2(
-			381,
-			_Utils_Tuple2('Hyperbole', 'Purposeful exaggeration for effect')),
-			_Utils_Tuple2(
-			382,
-			_Utils_Tuple2('Iconoclastic', 'Attacking cherished traditions')),
-			_Utils_Tuple2(
-			383,
-			_Utils_Tuple2('Ideological', 'Relating to ideology, the set of ideas that form the basis of a political or economic system')),
-			_Utils_Tuple2(
-			384,
-			_Utils_Tuple2('Idolatry', 'Idol worship; blind or excessive devotion')),
-			_Utils_Tuple2(
-			385,
-			_Utils_Tuple2('Igneous', 'Produced by fire; volcanic')),
-			_Utils_Tuple2(
-			386,
-			_Utils_Tuple2('Imbroglio', 'Complicated situation; an entanglement')),
-			_Utils_Tuple2(
-			387,
-			_Utils_Tuple2('Immutable', 'Unchangeable')),
-			_Utils_Tuple2(
-			388,
-			_Utils_Tuple2('Impassive', 'Showing no emotions')),
-			_Utils_Tuple2(
-			389,
-			_Utils_Tuple2('Impecunious', 'Poor; having no money')),
-			_Utils_Tuple2(
-			390,
-			_Utils_Tuple2('Impede', 'To hinder; block')),
-			_Utils_Tuple2(
-			391,
-			_Utils_Tuple2('Impermeable', 'Impossible to penetrate')),
-			_Utils_Tuple2(
-			392,
-			_Utils_Tuple2('Imperturbable', 'Not easily disturbed')),
-			_Utils_Tuple2(
-			393,
-			_Utils_Tuple2('Impervious', 'Impossible to penetrate; incapable of being affected')),
-			_Utils_Tuple2(
-			394,
-			_Utils_Tuple2('Impinge', 'To strike; encroach')),
-			_Utils_Tuple2(
-			395,
-			_Utils_Tuple2('Implacable', 'Inflexible; incapable of being pleased')),
-			_Utils_Tuple2(
-			396,
-			_Utils_Tuple2('Implausible', 'Unlikely; unbelievable')),
-			_Utils_Tuple2(
-			397,
-			_Utils_Tuple2('Implict', 'Implied; understood but not stated')),
-			_Utils_Tuple2(
-			398,
-			_Utils_Tuple2('Implode', 'Collapse inward violently')),
-			_Utils_Tuple2(
-			399,
-			_Utils_Tuple2('Imprecation', 'Curse')),
-			_Utils_Tuple2(
-			400,
-			_Utils_Tuple2('Impute', 'To relate a particular cause or source; attribute the fault to; assign as a characteristic')),
-			_Utils_Tuple2(
-			401,
-			_Utils_Tuple2('Inadvertently', 'Carelessly; unintentionally')),
-			_Utils_Tuple2(
-			402,
-			_Utils_Tuple2('Incarnate', 'Having bodily form')),
-			_Utils_Tuple2(
-			403,
-			_Utils_Tuple2('Inchoate', 'Imperfectly formed or formulated')),
-			_Utils_Tuple2(
-			404,
-			_Utils_Tuple2('Incongruity', 'State of not fitting')),
-			_Utils_Tuple2(
-			405,
-			_Utils_Tuple2('Inconsequential', 'Insignificant; unimportant')),
-			_Utils_Tuple2(
-			406,
-			_Utils_Tuple2('Incorporate', 'Introduce something into another thing already in existence; combine')),
-			_Utils_Tuple2(
-			407,
-			_Utils_Tuple2('Incursion', 'Sudden invasion')),
-			_Utils_Tuple2(
-			408,
-			_Utils_Tuple2('Indeterminate', 'Uncertain; indefinite')),
-			_Utils_Tuple2(
-			409,
-			_Utils_Tuple2('Indigence', 'Poverty')),
-			_Utils_Tuple2(
-			410,
-			_Utils_Tuple2('Indolant', 'Habitually lazy; idle')),
-			_Utils_Tuple2(
-			411,
-			_Utils_Tuple2('Ineluctable', 'Not to be avoided or escaped; inevitable')),
-			_Utils_Tuple2(
-			412,
-			_Utils_Tuple2('Inert', 'Unable to move; sluggish')),
-			_Utils_Tuple2(
-			413,
-			_Utils_Tuple2('Ingenuous', 'Naive and trusting; lacking sophistication')),
-			_Utils_Tuple2(
-			414,
-			_Utils_Tuple2('Inherent', 'Firmly established by nature or habit')),
-			_Utils_Tuple2(
-			415,
-			_Utils_Tuple2('Innocuous', 'Harmless')),
-			_Utils_Tuple2(
-			416,
-			_Utils_Tuple2('Insensible', 'Unconcious; unresponsive')),
-			_Utils_Tuple2(
-			417,
-			_Utils_Tuple2('Insinuate', 'To suggest; say indirectly; imply')),
-			_Utils_Tuple2(
-			418,
-			_Utils_Tuple2('Insipid', 'Lacking flavor; dull')),
-			_Utils_Tuple2(
-			419,
-			_Utils_Tuple2('Insouciant', 'Indifferent; lacking concern or care')),
-			_Utils_Tuple2(
-			420,
-			_Utils_Tuple2('Insularity', 'Narrow-mindedness; isolation')),
-			_Utils_Tuple2(
-			421,
-			_Utils_Tuple2('Insuperable', 'Insurmountable; unconquerable')),
-			_Utils_Tuple2(
-			422,
-			_Utils_Tuple2('Intangible', 'Not material')),
-			_Utils_Tuple2(
-			423,
-			_Utils_Tuple2('Interdict', 'To forbid; prohibit; To confront and halt the activities, advance, or entry of')),
-			_Utils_Tuple2(
-			424,
-			_Utils_Tuple2('Internecine', 'Deadly to both sides')),
-			_Utils_Tuple2(
-			425,
-			_Utils_Tuple2('Interpolate', 'To insert; change by adding new words or material')),
-			_Utils_Tuple2(
-			426,
-			_Utils_Tuple2('Interregnum', 'Interval between reigns; gap in continuity')),
-			_Utils_Tuple2(
-			427,
-			_Utils_Tuple2('Intimate', 'Marked by close acquaintance')),
-			_Utils_Tuple2(
-			428,
-			_Utils_Tuple2('Intractable', 'Not easily managed')),
-			_Utils_Tuple2(
-			429,
-			_Utils_Tuple2('Intransigence', 'Stubbornness; refusal to compromise')),
-			_Utils_Tuple2(
-			430,
-			_Utils_Tuple2('Introspective', 'Contemplating one\'s own thoughts and feelings')),
-			_Utils_Tuple2(
-			431,
-			_Utils_Tuple2('Inundate', 'To cover with water; overwhelm')),
-			_Utils_Tuple2(
-			432,
-			_Utils_Tuple2('Inured', 'Hardened; accustomed; used to')),
-			_Utils_Tuple2(
-			433,
-			_Utils_Tuple2('Invective', 'Verbal abuse')),
-			_Utils_Tuple2(
-			434,
-			_Utils_Tuple2('Inveigh', 'To disapprove; protest vehemently')),
-			_Utils_Tuple2(
-			435,
-			_Utils_Tuple2('Inveigle', 'To win over by flattery or coaxing')),
-			_Utils_Tuple2(
-			436,
-			_Utils_Tuple2('Inveterate', 'Confirmed; long-standing; deeply rooted')),
-			_Utils_Tuple2(
-			437,
-			_Utils_Tuple2('Invidious', 'Likely to provike ill will; offensive')),
-			_Utils_Tuple2(
-			438,
-			_Utils_Tuple2('Irascible', 'Easily angered')),
-			_Utils_Tuple2(
-			439,
-			_Utils_Tuple2('Irresolute', 'Unsure of how to act; weak')),
-			_Utils_Tuple2(
-			440,
-			_Utils_Tuple2('Itinerant', 'Wandering from place to place; unsettled')),
-			_Utils_Tuple2(
-			441,
-			_Utils_Tuple2('Itinerary', 'Route of a traveler\'s journey')),
-			_Utils_Tuple2(
-			442,
-			_Utils_Tuple2('Jaundiced', 'Having a yellowish discoloration of the skin; affected by envy, resentment, or hostility')),
-			_Utils_Tuple2(
-			443,
-			_Utils_Tuple2('Jibe', 'To be in agreement')),
-			_Utils_Tuple2(
-			444,
-			_Utils_Tuple2('Jocose', 'Fond of joking; jocular; playful')),
-			_Utils_Tuple2(
-			445,
-			_Utils_Tuple2('Juggernaut', 'Huge force destorying everything in its path')),
-			_Utils_Tuple2(
-			446,
-			_Utils_Tuple2('Junta', 'Group of people united in political intrigue')),
-			_Utils_Tuple2(
-			447,
-			_Utils_Tuple2('Juxtapose ', 'Place side by side')),
-			_Utils_Tuple2(
-			448,
-			_Utils_Tuple2('Kudos', 'Fame; glory; honor')),
-			_Utils_Tuple2(
-			449,
-			_Utils_Tuple2('Labile', 'Likely to change')),
-			_Utils_Tuple2(
-			450,
-			_Utils_Tuple2('Laconic', 'Using few words')),
-			_Utils_Tuple2(
-			451,
-			_Utils_Tuple2('Lambaste', 'To thrash verbally or physically')),
-			_Utils_Tuple2(
-			452,
-			_Utils_Tuple2('Lascivious', 'Lustful')),
-			_Utils_Tuple2(
-			453,
-			_Utils_Tuple2('Lassitude', 'Lethargy; sluggishness')),
-			_Utils_Tuple2(
-			454,
-			_Utils_Tuple2('Latent', 'Present but hidden; potential')),
-			_Utils_Tuple2(
-			455,
-			_Utils_Tuple2('Laud', 'To praise')),
-			_Utils_Tuple2(
-			456,
-			_Utils_Tuple2('Lethargic', 'Inactive')),
-			_Utils_Tuple2(
-			457,
-			_Utils_Tuple2('Levee', 'An embankment that prevents a river from overflowing')),
-			_Utils_Tuple2(
-			458,
-			_Utils_Tuple2('Levity', 'Light manner or attitude')),
-			_Utils_Tuple2(
-			459,
-			_Utils_Tuple2('Liberal', 'Tolerant; broad-minded; generous; lavish')),
-			_Utils_Tuple2(
-			460,
-			_Utils_Tuple2('Libertine', 'One without moral restraint')),
-			_Utils_Tuple2(
-			461,
-			_Utils_Tuple2('Libido', 'Sexual desire')),
-			_Utils_Tuple2(
-			462,
-			_Utils_Tuple2('Lilliputian', 'Extremely small')),
-			_Utils_Tuple2(
-			463,
-			_Utils_Tuple2('Limn', 'To draw; describe')),
-			_Utils_Tuple2(
-			464,
-			_Utils_Tuple2('Limpid', 'Clear; transparent')),
-			_Utils_Tuple2(
-			465,
-			_Utils_Tuple2('Lingusitic', 'Pertaining to language')),
-			_Utils_Tuple2(
-			466,
-			_Utils_Tuple2('Litany', 'Lengthy recitation; repetitive chant')),
-			_Utils_Tuple2(
-			467,
-			_Utils_Tuple2('Literati', 'Scholarly or learned persons')),
-			_Utils_Tuple2(
-			468,
-			_Utils_Tuple2('Litigation', 'Legal Proceedings')),
-			_Utils_Tuple2(
-			469,
-			_Utils_Tuple2('Log', 'Record of a voyage; record of daily activities')),
-			_Utils_Tuple2(
-			470,
-			_Utils_Tuple2('Loquacious', 'Talkative')),
-			_Utils_Tuple2(
-			471,
-			_Utils_Tuple2('Lucid', 'Bright; clear; intelligible')),
-			_Utils_Tuple2(
-			472,
-			_Utils_Tuple2('Lucre', 'Money or ptofits')),
-			_Utils_Tuple2(
-			473,
-			_Utils_Tuple2('Luminous', 'Bright; brilliant; glowing')),
-			_Utils_Tuple2(
-			474,
-			_Utils_Tuple2('Lustrous', 'Shining')),
-			_Utils_Tuple2(
-			475,
-			_Utils_Tuple2('Machiavellian', 'Crafty; double-dealing')),
-			_Utils_Tuple2(
-			476,
-			_Utils_Tuple2('Machinations', 'Plots or schemes')),
-			_Utils_Tuple2(
-			477,
-			_Utils_Tuple2('Maelstrom', 'Whirlpool; turmoil')),
-			_Utils_Tuple2(
-			478,
-			_Utils_Tuple2('Magnanimity', 'Generosity; nobility')),
-			_Utils_Tuple2(
-			479,
-			_Utils_Tuple2('Malign', 'To speak evil of')),
-			_Utils_Tuple2(
-			480,
-			_Utils_Tuple2('Malinger', 'To feign illness to escape duty')),
-			_Utils_Tuple2(
-			481,
-			_Utils_Tuple2('Malleable', 'Capable of being shaped by pounding; impressionable')),
-			_Utils_Tuple2(
-			482,
-			_Utils_Tuple2('Maverick', 'Dissenter')),
-			_Utils_Tuple2(
-			483,
-			_Utils_Tuple2('Megalomania', 'Delusions of power or importance')),
-			_Utils_Tuple2(
-			484,
-			_Utils_Tuple2('Menagerie', 'A variety of animals kept together')),
-			_Utils_Tuple2(
-			485,
-			_Utils_Tuple2('Mendacious', 'Dishonest')),
-			_Utils_Tuple2(
-			486,
-			_Utils_Tuple2('Mendicant', 'Beggar')),
-			_Utils_Tuple2(
-			487,
-			_Utils_Tuple2('Meretricious', 'Gaudy; plausible but false; specious')),
-			_Utils_Tuple2(
-			488,
-			_Utils_Tuple2('Mesmerize', 'To hypnotize')),
-			_Utils_Tuple2(
-			489,
-			_Utils_Tuple2('Metamorphosis', 'Change; transform')),
-			_Utils_Tuple2(
-			490,
-			_Utils_Tuple2('Metaphysics', 'Branch of philosophy that investigates the ultimate nature of reality')),
-			_Utils_Tuple2(
-			491,
-			_Utils_Tuple2('Meteoroligical', 'Concerned with the weather')),
-			_Utils_Tuple2(
-			492,
-			_Utils_Tuple2('Meticulous', 'Very careful; fastidious')),
-			_Utils_Tuple2(
-			493,
-			_Utils_Tuple2('Mettle', 'Courage; endurance')),
-			_Utils_Tuple2(
-			494,
-			_Utils_Tuple2('Mettlesome', 'Full of courage and fortitude; spirited')),
-			_Utils_Tuple2(
-			495,
-			_Utils_Tuple2('Microcosm', 'A small system having analogies to a larger system; small world')),
-			_Utils_Tuple2(
-			496,
-			_Utils_Tuple2('Militate', 'Work against')),
-			_Utils_Tuple2(
-			497,
-			_Utils_Tuple2('Minatory', 'Threatening; menacing')),
-			_Utils_Tuple2(
-			498,
-			_Utils_Tuple2('Minuscule', 'Very small')),
-			_Utils_Tuple2(
-			499,
-			_Utils_Tuple2('Minutia', 'Petty details')),
-			_Utils_Tuple2(
-			500,
-			_Utils_Tuple2('Misanthrope', 'One who hates humanity')),
-			_Utils_Tuple2(
-			501,
-			_Utils_Tuple2('Miscellany', 'Mixture of writings on various subjects')),
-			_Utils_Tuple2(
-			502,
-			_Utils_Tuple2('Miscreant', 'Villain; criminal')),
-			_Utils_Tuple2(
-			503,
-			_Utils_Tuple2('Misogynist', 'One who hates women')),
-			_Utils_Tuple2(
-			504,
-			_Utils_Tuple2('Mitigate', 'To cause to become less harsh, sever or painful; alleviate')),
-			_Utils_Tuple2(
-			505,
-			_Utils_Tuple2('Mnemonic', 'Related to memory; assisting memory')),
-			_Utils_Tuple2(
-			506,
-			_Utils_Tuple2('Modicum', 'Limited quantity')),
-			_Utils_Tuple2(
-			507,
-			_Utils_Tuple2('Mollify', 'To smooth')),
-			_Utils_Tuple2(
-			508,
-			_Utils_Tuple2('Monolithic', 'Solid and uniform; constituting a single, unified whole')),
-			_Utils_Tuple2(
-			509,
-			_Utils_Tuple2('Morose', 'Ill-humored; sullen')),
-			_Utils_Tuple2(
-			510,
-			_Utils_Tuple2('Motley', 'Many colored; made up of many parts')),
-			_Utils_Tuple2(
-			511,
-			_Utils_Tuple2('Multifarious', 'Diverse')),
-			_Utils_Tuple2(
-			512,
-			_Utils_Tuple2('Mundane', 'Worldly as opposed to spiritual; concerned with the ordinary')),
-			_Utils_Tuple2(
-			513,
-			_Utils_Tuple2('Necromancy', 'Black magic')),
-			_Utils_Tuple2(
-			514,
-			_Utils_Tuple2('Negate', 'To cancel out; nullify')),
-			_Utils_Tuple2(
-			515,
-			_Utils_Tuple2('Neologism', 'New word or expression')),
-			_Utils_Tuple2(
-			516,
-			_Utils_Tuple2('Neophyte', 'Npvice; beginner')),
-			_Utils_Tuple2(
-			517,
-			_Utils_Tuple2('Nexus', 'A means of connection; a connected group or series; a center')),
-			_Utils_Tuple2(
-			518,
-			_Utils_Tuple2('Nonplussed', 'Bewildered')),
-			_Utils_Tuple2(
-			519,
-			_Utils_Tuple2('Nostalgia', 'Sentimental longing for a past time')),
-			_Utils_Tuple2(
-			520,
-			_Utils_Tuple2('Nostrum', 'Medicine or remedy of doubtful effectiveness; supposed cure')),
-			_Utils_Tuple2(
-			521,
-			_Utils_Tuple2('Nugatory', 'Trifling; invalid')),
-			_Utils_Tuple2(
-			522,
-			_Utils_Tuple2('Obdurate', 'Stubborn')),
-			_Utils_Tuple2(
-			523,
-			_Utils_Tuple2('Obsequious', 'Overly submissive')),
-			_Utils_Tuple2(
-			524,
-			_Utils_Tuple2('Obsequy', 'Funeral ceremony (often used in the plural, obsequies)')),
-			_Utils_Tuple2(
-			525,
-			_Utils_Tuple2('Obviate', 'To make unnecessary; to anticipate and prevent')),
-			_Utils_Tuple2(
-			526,
-			_Utils_Tuple2('Occlude', 'To shut; block')),
-			_Utils_Tuple2(
-			527,
-			_Utils_Tuple2('Occult', 'Relating to practices connected with supernatural phenomena')),
-			_Utils_Tuple2(
-			528,
-			_Utils_Tuple2('Odyssey', 'A long, adventrous voyage; a quest')),
-			_Utils_Tuple2(
-			529,
-			_Utils_Tuple2('Officious', 'Too helpful; meddlesome')),
-			_Utils_Tuple2(
-			530,
-			_Utils_Tuple2('Olfactory', 'Concerning the sense of smell')),
-			_Utils_Tuple2(
-			531,
-			_Utils_Tuple2('Oligarchy', 'From of government in which power belongs to only a few leaders')),
-			_Utils_Tuple2(
-			532,
-			_Utils_Tuple2('Onerous', 'Burdensome')),
-			_Utils_Tuple2(
-			533,
-			_Utils_Tuple2('Onomatopoeia', 'Formation or use of words that imitate sounds of the actions they refer to')),
-			_Utils_Tuple2(
-			534,
-			_Utils_Tuple2('Opprobrium', 'Disgrace; contempt')),
-			_Utils_Tuple2(
-			535,
-			_Utils_Tuple2('Ornithologist', 'Scientist who studies birds')),
-			_Utils_Tuple2(
-			536,
-			_Utils_Tuple2('Oscillate', 'To move back and forth')),
-			_Utils_Tuple2(
-			537,
-			_Utils_Tuple2('Ostentatious', 'Showy; trying to attract attention; pretentious')),
-			_Utils_Tuple2(
-			538,
-			_Utils_Tuple2('Overweening', 'Presumptuous; arrogant; overbearing')),
-			_Utils_Tuple2(
-			539,
-			_Utils_Tuple2('Paean', 'Song of joy or triumph; a fervent expression of joy')),
-			_Utils_Tuple2(
-			540,
-			_Utils_Tuple2('Paleontology', 'Study of past geological eras through fossil remains')),
-			_Utils_Tuple2(
-			541,
-			_Utils_Tuple2('Pallid', 'Lacking color or liveliness')),
-			_Utils_Tuple2(
-			542,
-			_Utils_Tuple2('Panegyric', 'Elaborate praise; formal hymn of praise')),
-			_Utils_Tuple2(
-			543,
-			_Utils_Tuple2('Paragon', 'Model of excellence or perfection')),
-			_Utils_Tuple2(
-			544,
-			_Utils_Tuple2('Partisan', 'One-sided; committed to a party, group, or cause; prejudiced')),
-			_Utils_Tuple2(
-			545,
-			_Utils_Tuple2('Pathological', 'Departing from normal condition')),
-			_Utils_Tuple2(
-			546,
-			_Utils_Tuple2('Patois', 'A regional dialect; nonstandard speech; jargon')),
-			_Utils_Tuple2(
-			547,
-			_Utils_Tuple2('Paucity', 'Scarcity')),
-			_Utils_Tuple2(
-			548,
-			_Utils_Tuple2('Pedantic', 'Showing off learning')),
-			_Utils_Tuple2(
-			549,
-			_Utils_Tuple2('Pellucid', 'Transparent; translucent; easily understood')),
-			_Utils_Tuple2(
-			550,
-			_Utils_Tuple2('Penchant', 'Inclination')),
-			_Utils_Tuple2(
-			551,
-			_Utils_Tuple2('Penury', 'Extreme poverty')),
-			_Utils_Tuple2(
-			552,
-			_Utils_Tuple2('Peregrination', 'A wandering from place to place')),
-			_Utils_Tuple2(
-			553,
-			_Utils_Tuple2('Peremptory', 'Imperative; leaving no choice')),
-			_Utils_Tuple2(
-			554,
-			_Utils_Tuple2('Perennial', 'Present throughout the years; persistent')),
-			_Utils_Tuple2(
-			555,
-			_Utils_Tuple2('Perfidious', 'Faithless; disloyal; untrustworthy')),
-			_Utils_Tuple2(
-			556,
-			_Utils_Tuple2('Perfunctory', 'Superficial; not thorough; performed really as a duty')),
-			_Utils_Tuple2(
-			557,
-			_Utils_Tuple2('Perigee', 'Point in an orbit that is closest to the Earth')),
-			_Utils_Tuple2(
-			558,
-			_Utils_Tuple2('Permeable', 'Penetrable')),
-			_Utils_Tuple2(
-			559,
-			_Utils_Tuple2('Perturb', 'To disturb greatly; make uneasy or anxious; cause a body to deviate from its regular orbit')),
-			_Utils_Tuple2(
-			560,
-			_Utils_Tuple2('Pervasive', 'Spread throughout every part')),
-			_Utils_Tuple2(
-			561,
-			_Utils_Tuple2('Petulant', 'Rude; peevish')),
-			_Utils_Tuple2(
-			562,
-			_Utils_Tuple2('Phlegmatic', 'Calm in temperment; sluggish')),
-			_Utils_Tuple2(
-			563,
-			_Utils_Tuple2('Phoenix', 'Mythical, immortal bird that lives for 500 years, burns itself to death, and rises from its ashes; anything that is restored after suffering great destruction')),
-			_Utils_Tuple2(
-			564,
-			_Utils_Tuple2('Physiognomy', 'Facial features')),
-			_Utils_Tuple2(
-			565,
-			_Utils_Tuple2('Piety', 'Devoutness')),
-			_Utils_Tuple2(
-			566,
-			_Utils_Tuple2('Piquant', 'Appealingly stimulating; pleasantly pungent; attractive')),
-			_Utils_Tuple2(
-			567,
-			_Utils_Tuple2('Pique', 'Fleeting feeling of jurt pride')),
-			_Utils_Tuple2(
-			568,
-			_Utils_Tuple2('Placate', 'To lessen another\'s anger; to pacify')),
-			_Utils_Tuple2(
-			569,
-			_Utils_Tuple2('Placid', 'Calm')),
-			_Utils_Tuple2(
-			570,
-			_Utils_Tuple2('Plaintive', 'Melancholy; mournful')),
-			_Utils_Tuple2(
-			571,
-			_Utils_Tuple2('Plasticity', 'Condition of being able to be shaped or formed; pliability')),
-			_Utils_Tuple2(
-			572,
-			_Utils_Tuple2('Platitude', 'Stal, overused expression')),
-			_Utils_Tuple2(
-			573,
-			_Utils_Tuple2('Platonic', 'Spiritual; without sensual desire; theoretical')),
-			_Utils_Tuple2(
-			574,
-			_Utils_Tuple2('Plethora', 'Excess; overabundance')),
-			_Utils_Tuple2(
-			575,
-			_Utils_Tuple2('Plumb', 'To determine the depth; to examine deeply')),
-			_Utils_Tuple2(
-			576,
-			_Utils_Tuple2('Plummet', 'To fall; plunge')),
-			_Utils_Tuple2(
-			577,
-			_Utils_Tuple2('Plutocracy', 'Society ruled by the wealthy')),
-			_Utils_Tuple2(
-			578,
-			_Utils_Tuple2('Porous', 'Full of holes; permeable to liquids')),
-			_Utils_Tuple2(
-			579,
-			_Utils_Tuple2('Poseur', 'Person who affects an attitude or identity to impress others')),
-			_Utils_Tuple2(
-			580,
-			_Utils_Tuple2('Pragmatic', 'Practical')),
-			_Utils_Tuple2(
-			581,
-			_Utils_Tuple2('Prate', 'To talk idly; chatter')),
-			_Utils_Tuple2(
-			582,
-			_Utils_Tuple2('Prattle', 'Meaningless, foolish talk')),
-			_Utils_Tuple2(
-			583,
-			_Utils_Tuple2('Preamble', 'Preliminary statement')),
-			_Utils_Tuple2(
-			584,
-			_Utils_Tuple2('Precarious', 'Uncertain')),
-			_Utils_Tuple2(
-			585,
-			_Utils_Tuple2('Precept', 'Principle; law')),
-			_Utils_Tuple2(
-			586,
-			_Utils_Tuple2('Precipitate', 'To cause to happen; throw down from a height OR rash; hasty; sudden')),
-			_Utils_Tuple2(
-			587,
-			_Utils_Tuple2('Place', 'Holder')),
-			_Utils_Tuple2(
-			588,
-			_Utils_Tuple2('Precursor', 'Forerunner; predecessor')),
-			_Utils_Tuple2(
-			589,
-			_Utils_Tuple2('Preempt', 'To supersede; appropriate for oneself')),
-			_Utils_Tuple2(
-			590,
-			_Utils_Tuple2('Prehensile', 'Capable of grasping')),
-			_Utils_Tuple2(
-			591,
-			_Utils_Tuple2('Premonition', 'Forewarning; presentiment')),
-			_Utils_Tuple2(
-			592,
-			_Utils_Tuple2('Presage', 'To foretell; indicate in advance')),
-			_Utils_Tuple2(
-			593,
-			_Utils_Tuple2('Presumptuous', 'Rude; improperly bold; readiness to presume')),
-			_Utils_Tuple2(
-			594,
-			_Utils_Tuple2('Preternatural', 'Beyond the normal course of nature; supernatural')),
-			_Utils_Tuple2(
-			595,
-			_Utils_Tuple2('Prevaricate', 'To quibble; evade the truth')),
-			_Utils_Tuple2(
-			596,
-			_Utils_Tuple2('Primoridal', 'Original; existing from the beginning')),
-			_Utils_Tuple2(
-			597,
-			_Utils_Tuple2('Pristine', 'Untouched; uncorrupted')),
-			_Utils_Tuple2(
-			598,
-			_Utils_Tuple2('Probity', 'Honesty; high-mindedness')),
-			_Utils_Tuple2(
-			599,
-			_Utils_Tuple2('Problematic', 'Posing a problem; doubtful; unsettled')),
-			_Utils_Tuple2(
-			600,
-			_Utils_Tuple2('Prodigal', 'Wasteful; extravagant; lavish')),
-			_Utils_Tuple2(
-			601,
-			_Utils_Tuple2('Profound', 'Deep; not superficial')),
-			_Utils_Tuple2(
-			602,
-			_Utils_Tuple2('Prohibitive', 'So high as to prevent the purchase or use of; preventing; forbidding')),
-			_Utils_Tuple2(
-			603,
-			_Utils_Tuple2('Proliferate', 'To increase rapidly')),
-			_Utils_Tuple2(
-			604,
-			_Utils_Tuple2('Propensity', 'Inclination; tendency')),
-			_Utils_Tuple2(
-			605,
-			_Utils_Tuple2('Propitiate', 'To win over; appease')),
-			_Utils_Tuple2(
-			606,
-			_Utils_Tuple2('Propriety', 'Correct conduct; fitness')),
-			_Utils_Tuple2(
-			607,
-			_Utils_Tuple2('Proscribe', 'To condemn; forbid; outlaw')),
-			_Utils_Tuple2(
-			608,
-			_Utils_Tuple2('Provident', 'Providing for future needs; frugal')),
-			_Utils_Tuple2(
-			609,
-			_Utils_Tuple2('Puissant', 'Powerful')),
-			_Utils_Tuple2(
-			610,
-			_Utils_Tuple2('Punctilious', 'Careful in observing rules of behavior or ceremony')),
-			_Utils_Tuple2(
-			611,
-			_Utils_Tuple2('Pungent', 'Strong or sharp in smell or taste; penetrating; caustic; to the point')),
-			_Utils_Tuple2(
-			612,
-			_Utils_Tuple2('Purport', 'To profess; suppose; claim')),
-			_Utils_Tuple2(
-			613,
-			_Utils_Tuple2('Pusillanimous', 'Cowardly')),
-			_Utils_Tuple2(
-			614,
-			_Utils_Tuple2('Quagmire', 'Marsh; difficult situation')),
-			_Utils_Tuple2(
-			615,
-			_Utils_Tuple2('Quail', 'To cower; lose heart')),
-			_Utils_Tuple2(
-			616,
-			_Utils_Tuple2('Qualified', 'Limited; restricted')),
-			_Utils_Tuple2(
-			617,
-			_Utils_Tuple2('Qualm', 'Sudden feeling of faintness or nausea; uneasy feeling about the rightness of actions')),
-			_Utils_Tuple2(
-			618,
-			_Utils_Tuple2('Query', 'To question')),
-			_Utils_Tuple2(
-			619,
-			_Utils_Tuple2('Quibble', 'To argue over insignificant and irrelevant details')),
-			_Utils_Tuple2(
-			620,
-			_Utils_Tuple2('Quiescent', 'Inactive; still')),
-			_Utils_Tuple2(
-			621,
-			_Utils_Tuple2('Quorum', 'Number of members necessary to conduct a meeting')),
-			_Utils_Tuple2(
-			622,
-			_Utils_Tuple2('Raconteur', 'Witty, skillful storyteller')),
-			_Utils_Tuple2(
-			623,
-			_Utils_Tuple2('Rail', 'To scold with bitter or abusive language')),
-			_Utils_Tuple2(
-			624,
-			_Utils_Tuple2('Raiment', 'Clothing')),
-			_Utils_Tuple2(
-			625,
-			_Utils_Tuple2('Ramification', 'Implication; outgrowth; consequence')),
-			_Utils_Tuple2(
-			626,
-			_Utils_Tuple2('Rarefied', 'Refined')),
-			_Utils_Tuple2(
-			627,
-			_Utils_Tuple2('Rationale', 'Fundamental reason')),
-			_Utils_Tuple2(
-			628,
-			_Utils_Tuple2('Rebus', 'Puzzle in which pictures or symbols represent words')),
-			_Utils_Tuple2(
-			629,
-			_Utils_Tuple2('Recalcitrant', 'Resisting authority or control')),
-			_Utils_Tuple2(
-			630,
-			_Utils_Tuple2('Recant', 'To retract a statement or opinion')),
-			_Utils_Tuple2(
-			631,
-			_Utils_Tuple2('Recluse', 'A person who lives in seclusion and often in solitude')),
-			_Utils_Tuple2(
-			632,
-			_Utils_Tuple2('Recondite', 'Abstruse; profound')),
-			_Utils_Tuple2(
-			633,
-			_Utils_Tuple2('Redoubtable', 'Formidable; arousing fear; worthy of respect')),
-			_Utils_Tuple2(
-			634,
-			_Utils_Tuple2('Refractory', 'Stubborn; unmanageable; resisting ordinary methods of treatment')),
-			_Utils_Tuple2(
-			635,
-			_Utils_Tuple2('Refulgent', 'Brightly shining; resplendent')),
-			_Utils_Tuple2(
-			636,
-			_Utils_Tuple2('Refute', 'To contradict; disprove')),
-			_Utils_Tuple2(
-			637,
-			_Utils_Tuple2('Regale', 'To entertain')),
-			_Utils_Tuple2(
-			638,
-			_Utils_Tuple2('Relegate', 'To consign to an inferior position')),
-			_Utils_Tuple2(
-			639,
-			_Utils_Tuple2('Remonstrate', 'To object or protest')),
-			_Utils_Tuple2(
-			640,
-			_Utils_Tuple2('Renege', 'To go back on one\'s word')),
-			_Utils_Tuple2(
-			641,
-			_Utils_Tuple2('Reparation', 'Amends; compensation')),
-			_Utils_Tuple2(
-			642,
-			_Utils_Tuple2('Repine', 'Fret; complain')),
-			_Utils_Tuple2(
-			643,
-			_Utils_Tuple2('Reprise', 'Repetition, especially of a piece of music')),
-			_Utils_Tuple2(
-			644,
-			_Utils_Tuple2('Reproach', 'To find fault with; blame')),
-			_Utils_Tuple2(
-			645,
-			_Utils_Tuple2('Reprobate', 'Morally unprincipled person')),
-			_Utils_Tuple2(
-			646,
-			_Utils_Tuple2('Repudiate', 'To reject as having no authority')),
-			_Utils_Tuple2(
-			647,
-			_Utils_Tuple2('Rescind', 'To cancel')),
-			_Utils_Tuple2(
-			648,
-			_Utils_Tuple2('Resolution', 'Determination; resolve')),
-			_Utils_Tuple2(
-			649,
-			_Utils_Tuple2('Resolve', 'Determination; firmness of purpse')),
-			_Utils_Tuple2(
-			650,
-			_Utils_Tuple2('Reticent', 'Not speaking freely; reserved; reluctant')),
-			_Utils_Tuple2(
-			651,
-			_Utils_Tuple2('Reverent', 'Expressing deep respect; worshipful')),
-			_Utils_Tuple2(
-			652,
-			_Utils_Tuple2('Riposte', 'A retaliatory action or retort')),
-			_Utils_Tuple2(
-			653,
-			_Utils_Tuple2('Rococo', 'Excessively ornate; highly decorated; style of architecture in 18th-century Europe')),
-			_Utils_Tuple2(
-			654,
-			_Utils_Tuple2('Rubric', 'Tile or heading; category; established mode of procedure or conduct; protocol')),
-			_Utils_Tuple2(
-			655,
-			_Utils_Tuple2('Rue', 'To regret')),
-			_Utils_Tuple2(
-			656,
-			_Utils_Tuple2('Ruse', 'Trick; crafty stratagem; subterfuge')),
-			_Utils_Tuple2(
-			657,
-			_Utils_Tuple2('Sage', 'Wise')),
-			_Utils_Tuple2(
-			658,
-			_Utils_Tuple2('Salacious', 'Lascivious; lustful')),
-			_Utils_Tuple2(
-			659,
-			_Utils_Tuple2('Salubrious', 'Healthful')),
-			_Utils_Tuple2(
-			660,
-			_Utils_Tuple2('Salutary', 'Expecting improvement; favorable to health')),
-			_Utils_Tuple2(
-			661,
-			_Utils_Tuple2('Sanction', 'To approve; ratify; permit')),
-			_Utils_Tuple2(
-			662,
-			_Utils_Tuple2('Sardonic', 'Cynical; scornfully mocking')),
-			_Utils_Tuple2(
-			663,
-			_Utils_Tuple2('Sartorial', 'Pertaining to tailors')),
-			_Utils_Tuple2(
-			664,
-			_Utils_Tuple2('Satiate', 'To satisfy')),
-			_Utils_Tuple2(
-			665,
-			_Utils_Tuple2('Saturate', 'To soak throughly; imbue throughout')),
-			_Utils_Tuple2(
-			666,
-			_Utils_Tuple2('Saturnine', 'Gloomy')),
-			_Utils_Tuple2(
-			667,
-			_Utils_Tuple2('Satyr', 'A creature that is half-man, half-beast with the horns and legs of a goat; it is a follower of Dionysos; a lecher')),
-			_Utils_Tuple2(
-			668,
-			_Utils_Tuple2('Savor', 'To enjoy; have a distinctive flavor or smell')),
-			_Utils_Tuple2(
-			669,
-			_Utils_Tuple2('Schematic', 'Relating to or in the form of an outline or diagram')),
-			_Utils_Tuple2(
-			670,
-			_Utils_Tuple2('Secrete', 'Produce and release substance into organism')),
-			_Utils_Tuple2(
-			671,
-			_Utils_Tuple2('Sedition', 'Behavior prompting rebellion')),
-			_Utils_Tuple2(
-			672,
-			_Utils_Tuple2('Sedulous', 'Diligent')),
-			_Utils_Tuple2(
-			673,
-			_Utils_Tuple2('Seismic', 'Relating to earthquakes; earthshaking')),
-			_Utils_Tuple2(
-			674,
-			_Utils_Tuple2('Sensual', 'Relating to the senses; gratifying the physical senses, especially sexual appetites')),
-			_Utils_Tuple2(
-			675,
-			_Utils_Tuple2('Sensuous', 'Relating to the senses; operating through the senses')),
-			_Utils_Tuple2(
-			676,
-			_Utils_Tuple2('Sentient', 'Aware; concious; able to perceive')),
-			_Utils_Tuple2(
-			677,
-			_Utils_Tuple2('Servile', 'Submissive; obedient')),
-			_Utils_Tuple2(
-			678,
-			_Utils_Tuple2('Sextant', 'Navigation tool that determines latitude and longitude')),
-			_Utils_Tuple2(
-			679,
-			_Utils_Tuple2('Shard', 'A piece of broken glass or pottery')),
-			_Utils_Tuple2(
-			680,
-			_Utils_Tuple2('Sidereal', 'Relating to the stars')),
-			_Utils_Tuple2(
-			681,
-			_Utils_Tuple2('Simian', 'Apelike; relating to apes')),
-			_Utils_Tuple2(
-			682,
-			_Utils_Tuple2('Simile', 'Comparison of one thing with abother using \"like\" or \"as\"')),
-			_Utils_Tuple2(
-			683,
-			_Utils_Tuple2('Sinecure', 'Well-paying job or office that requires little or no work')),
-			_Utils_Tuple2(
-			684,
-			_Utils_Tuple2('Singular', 'Unique; extraordinary; odd')),
-			_Utils_Tuple2(
-			685,
-			_Utils_Tuple2('Sinuous', 'Winding; intricate; complex')),
-			_Utils_Tuple2(
-			686,
-			_Utils_Tuple2('Skeptic', 'One who doubts')),
-			_Utils_Tuple2(
-			687,
-			_Utils_Tuple2('Sobriety', 'Seriousness')),
-			_Utils_Tuple2(
-			688,
-			_Utils_Tuple2('Sodden', 'Thoroughly soaked; saturated')),
-			_Utils_Tuple2(
-			689,
-			_Utils_Tuple2('Solicitous', 'Concerned; attentive; eager')),
-			_Utils_Tuple2(
-			690,
-			_Utils_Tuple2('Soliloquy', 'Long speech given to oneself')),
-			_Utils_Tuple2(
-			691,
-			_Utils_Tuple2('Solvent', 'Able to meet financial obligations')),
-			_Utils_Tuple2(
-			692,
-			_Utils_Tuple2('Somatic', 'Relating to or affecting the body; corporeal')),
-			_Utils_Tuple2(
-			693,
-			_Utils_Tuple2('Soporific', 'Sleeo producing')),
-			_Utils_Tuple2(
-			694,
-			_Utils_Tuple2('Sordid', 'Filthy; contemptible and corrupt')),
-			_Utils_Tuple2(
-			695,
-			_Utils_Tuple2('Specious', 'Seeming to be logical and sound, but not really so')),
-			_Utils_Tuple2(
-			696,
-			_Utils_Tuple2('Spectrum', 'Band of colors produced when sunlight passes through a prism; a broad range of related ideas or objects')),
-			_Utils_Tuple2(
-			697,
-			_Utils_Tuple2('Spendthrift', 'Person who spends money recklessly')),
-			_Utils_Tuple2(
-			698,
-			_Utils_Tuple2('Sporadic', 'Irregular')),
-			_Utils_Tuple2(
-			699,
-			_Utils_Tuple2('Squalor', 'Filthy, wretched condition')),
-			_Utils_Tuple2(
-			700,
-			_Utils_Tuple2('Staccato', 'Marked by abrupt, clear-cut sounds')),
-			_Utils_Tuple2(
-			701,
-			_Utils_Tuple2('Stanch', 'To stop or check the flow of')),
-			_Utils_Tuple2(
-			702,
-			_Utils_Tuple2('Stentorian', 'Extremely loud')),
-			_Utils_Tuple2(
-			703,
-			_Utils_Tuple2('Stigma', 'Mark of disgrace or inferiority')),
-			_Utils_Tuple2(
-			704,
-			_Utils_Tuple2('Stint', 'To be sparing')),
-			_Utils_Tuple2(
-			705,
-			_Utils_Tuple2('Stipulate', 'To specify an essential condition')),
-			_Utils_Tuple2(
-			706,
-			_Utils_Tuple2('Stolid', 'Having or showing little emotion')),
-			_Utils_Tuple2(
-			707,
-			_Utils_Tuple2('Stratified', 'Arranged in layers')),
-			_Utils_Tuple2(
-			708,
-			_Utils_Tuple2('Striated', 'Marked with thin, narrow grooves or channes')),
-			_Utils_Tuple2(
-			709,
-			_Utils_Tuple2('Stricture', 'Something that restrains; negative criticism')),
-			_Utils_Tuple2(
-			710,
-			_Utils_Tuple2('Strident', 'Loud; harsh; unpleasantly noisy')),
-			_Utils_Tuple2(
-			711,
-			_Utils_Tuple2('Strut', 'To swagger; display to impress others')),
-			_Utils_Tuple2(
-			712,
-			_Utils_Tuple2('Stultify', 'To impair or reduce to uselessness')),
-			_Utils_Tuple2(
-			713,
-			_Utils_Tuple2('Stupefy', 'To dull the senses of; stun; astonish')),
-			_Utils_Tuple2(
-			714,
-			_Utils_Tuple2('Stygian', 'Dark and gloomy; hellish')),
-			_Utils_Tuple2(
-			715,
-			_Utils_Tuple2('Subpoena', 'Notice ordering someone to appear in court')),
-			_Utils_Tuple2(
-			716,
-			_Utils_Tuple2('Subside', 'To settle down; grow quiet')),
-			_Utils_Tuple2(
-			717,
-			_Utils_Tuple2('Substantiate', 'To support with proof or evidence')),
-			_Utils_Tuple2(
-			718,
-			_Utils_Tuple2('Substantive', 'Essential; pertaining to the substance')),
-			_Utils_Tuple2(
-			719,
-			_Utils_Tuple2('Subsume', 'To include; incorporate')),
-			_Utils_Tuple2(
-			720,
-			_Utils_Tuple2('Subversive', 'Intended to undermine or overthrow, especially an established government')),
-			_Utils_Tuple2(
-			721,
-			_Utils_Tuple2('Succor', 'Relief; help in time of distress or want')),
-			_Utils_Tuple2(
-			722,
-			_Utils_Tuple2('Suffrage', 'The right to vote')),
-			_Utils_Tuple2(
-			723,
-			_Utils_Tuple2('Sundry', 'Various')),
-			_Utils_Tuple2(
-			724,
-			_Utils_Tuple2('Supersede', 'To replace, especially to displace as inferior or antiquated')),
-			_Utils_Tuple2(
-			725,
-			_Utils_Tuple2('Supine', 'Lying on the back; marked by lethargy')),
-			_Utils_Tuple2(
-			726,
-			_Utils_Tuple2('Supplant', 'To replace; substitute')),
-			_Utils_Tuple2(
-			727,
-			_Utils_Tuple2('Suppliant', 'Beseeching')),
-			_Utils_Tuple2(
-			728,
-			_Utils_Tuple2('Supplicant', 'One who asks humbly and earnestly')),
-			_Utils_Tuple2(
-			729,
-			_Utils_Tuple2('Supposition', 'The act of assuming to be true or real')),
-			_Utils_Tuple2(
-			730,
-			_Utils_Tuple2('Syllogism', 'A form of deductive reasoning that has a major premise, a minor premise, and a conclusion')),
-			_Utils_Tuple2(
-			731,
-			_Utils_Tuple2('Sylvan', 'Related to the woods or forest')),
-			_Utils_Tuple2(
-			732,
-			_Utils_Tuple2('Tacit', 'Silently understood; implied')),
-			_Utils_Tuple2(
-			733,
-			_Utils_Tuple2('Taciturn', 'Habitually untalkative')),
-			_Utils_Tuple2(
-			734,
-			_Utils_Tuple2('Talisman', 'Charm to bring good luck and avert misfortune')),
-			_Utils_Tuple2(
-			735,
-			_Utils_Tuple2('Tangential', 'Peripheral; digressing')),
-			_Utils_Tuple2(
-			736,
-			_Utils_Tuple2('Tautology', 'Unnecessary repetition')),
-			_Utils_Tuple2(
-			737,
-			_Utils_Tuple2('Taxonomy', 'Science of classification; in biology, the process of classifying organisms in categories')),
-			_Utils_Tuple2(
-			738,
-			_Utils_Tuple2('Tenet', 'Belief; doctrine')),
-			_Utils_Tuple2(
-			739,
-			_Utils_Tuple2('Tenuous', 'Weak; insubstantial')),
-			_Utils_Tuple2(
-			740,
-			_Utils_Tuple2('Theocracy', 'Government by priests representing a god')),
-			_Utils_Tuple2(
-			741,
-			_Utils_Tuple2('Thespian', 'An actor or actress')),
-			_Utils_Tuple2(
-			742,
-			_Utils_Tuple2('Timbre', 'The characteristic quality of sound produced by a particular instrument or voice; tone color')),
-			_Utils_Tuple2(
-			743,
-			_Utils_Tuple2('Tirade', 'Long, violent speech; verbal assault')),
-			_Utils_Tuple2(
-			744,
-			_Utils_Tuple2('Toady', 'Flatterer; hanger-on; yes-man')),
-			_Utils_Tuple2(
-			745,
-			_Utils_Tuple2('Tome', 'Book, usually large and academic')),
-			_Utils_Tuple2(
-			746,
-			_Utils_Tuple2('Torpor', 'Lethargy; dormancy; sluggishness')),
-			_Utils_Tuple2(
-			747,
-			_Utils_Tuple2('Torque', 'A turning or twisting force; the moment of a force')),
-			_Utils_Tuple2(
-			748,
-			_Utils_Tuple2('Tortuous', 'Having many twists and turns; highly complex')),
-			_Utils_Tuple2(
-			749,
-			_Utils_Tuple2('Tout', 'To promote or praise energetically')),
-			_Utils_Tuple2(
-			750,
-			_Utils_Tuple2('Tractable', 'Obedient; yielding')),
-			_Utils_Tuple2(
-			751,
-			_Utils_Tuple2('Transgression', 'Act of trespassing or violating a law or rule')),
-			_Utils_Tuple2(
-			752,
-			_Utils_Tuple2('Transient', 'Temporary; short-lived; fleeting')),
-			_Utils_Tuple2(
-			753,
-			_Utils_Tuple2('Translucent', 'Partially transparent')),
-			_Utils_Tuple2(
-			754,
-			_Utils_Tuple2('Travail', 'Work, especially arduous work; tribulation; anguish')),
-			_Utils_Tuple2(
-			755,
-			_Utils_Tuple2('Travesty', 'Parody; exaggerated imitation; caricature')),
-			_Utils_Tuple2(
-			756,
-			_Utils_Tuple2('Treatise', 'Article treating a subject systematically and thoroughly')),
-			_Utils_Tuple2(
-			757,
-			_Utils_Tuple2('Tremulous', 'Trembling; quivering; frugal; timid')),
-			_Utils_Tuple2(
-			758,
-			_Utils_Tuple2('Trepidation', 'Fear and anxiety')),
-			_Utils_Tuple2(
-			759,
-			_Utils_Tuple2('Truculence', 'Aggressiveness; ferocity')),
-			_Utils_Tuple2(
-			760,
-			_Utils_Tuple2('Tryst', 'Agreement between lovers to meet; rendezvous')),
-			_Utils_Tuple2(
-			761,
-			_Utils_Tuple2('Tumid', 'Swollen; distended')),
-			_Utils_Tuple2(
-			762,
-			_Utils_Tuple2('Turbid', 'Muddy; opaque; in a state of great confusion')),
-			_Utils_Tuple2(
-			763,
-			_Utils_Tuple2('Turgid', 'Swollen; bloated; pompous')),
-			_Utils_Tuple2(
-			764,
-			_Utils_Tuple2('Tutelary', 'Serving as a guardian or protector')),
-			_Utils_Tuple2(
-			765,
-			_Utils_Tuple2('Uncanny', 'Mysterious; strange')),
-			_Utils_Tuple2(
-			766,
-			_Utils_Tuple2('Undulating', 'Moving in waves')),
-			_Utils_Tuple2(
-			767,
-			_Utils_Tuple2('Unfeigned', 'Not false; not made up; genuine')),
-			_Utils_Tuple2(
-			768,
-			_Utils_Tuple2('Untenable', 'Indefensible')),
-			_Utils_Tuple2(
-			769,
-			_Utils_Tuple2('Untoward', 'Not favorable; troublesome; adverse; unruly')),
-			_Utils_Tuple2(
-			770,
-			_Utils_Tuple2('Usury', 'Practice of lending money at exorbitant rates')),
-			_Utils_Tuple2(
-			771,
-			_Utils_Tuple2('Vacillate', 'To waver; oscillate')),
-			_Utils_Tuple2(
-			772,
-			_Utils_Tuple2('Vacuous', 'Empty; void; lacking intelligence; purposeless')),
-			_Utils_Tuple2(
-			773,
-			_Utils_Tuple2('Valedictory', 'Pertaining to a farewell')),
-			_Utils_Tuple2(
-			774,
-			_Utils_Tuple2('Vapid', 'Tasteless; dull')),
-			_Utils_Tuple2(
-			775,
-			_Utils_Tuple2('Variegated', 'Varied; marked with different colors')),
-			_Utils_Tuple2(
-			776,
-			_Utils_Tuple2('Vaunt', 'To boast; brag')),
-			_Utils_Tuple2(
-			777,
-			_Utils_Tuple2('Venal', 'Bribable; mercenary; corruptible')),
-			_Utils_Tuple2(
-			778,
-			_Utils_Tuple2('Vendetta', 'Prolonged feud marked by bitter hostility')),
-			_Utils_Tuple2(
-			779,
-			_Utils_Tuple2('Venerate', 'To adore; honor; respect')),
-			_Utils_Tuple2(
-			780,
-			_Utils_Tuple2('Veracious', 'Truthful; accurate')),
-			_Utils_Tuple2(
-			781,
-			_Utils_Tuple2('Verbose', 'Wordy')),
-			_Utils_Tuple2(
-			782,
-			_Utils_Tuple2('Vertigo', 'Dizziness')),
-			_Utils_Tuple2(
-			783,
-			_Utils_Tuple2('Vexation', 'Irritation; annoyance; confusion; puzzlement')),
-			_Utils_Tuple2(
-			784,
-			_Utils_Tuple2('Viable', 'Practicable; capable of developing')),
-			_Utils_Tuple2(
-			785,
-			_Utils_Tuple2('Vindictive', 'Spiteful; vengeful; unforgibing')),
-			_Utils_Tuple2(
-			786,
-			_Utils_Tuple2('Virtuoso', 'Someone with masterly skills; expert musician')),
-			_Utils_Tuple2(
-			787,
-			_Utils_Tuple2('Visage', 'Countenance; appearance; aspect')),
-			_Utils_Tuple2(
-			788,
-			_Utils_Tuple2('Viscous', 'Thick; syrupy and sticky')),
-			_Utils_Tuple2(
-			789,
-			_Utils_Tuple2('Vititate', 'To impair the quality of; corrupt morally; make inoperative')),
-			_Utils_Tuple2(
-			790,
-			_Utils_Tuple2('Vituperative', 'Using or containing harsh, abusive censure')),
-			_Utils_Tuple2(
-			791,
-			_Utils_Tuple2('Vivisection', 'dissection, surgery, or painful experiments performed on a living animal for the purpose of scientific research')),
-			_Utils_Tuple2(
-			792,
-			_Utils_Tuple2('Vogue', 'Prevailing fashion or practice')),
-			_Utils_Tuple2(
-			793,
-			_Utils_Tuple2('Volatile', 'Tending to vary frequently; fickle')),
-			_Utils_Tuple2(
-			794,
-			_Utils_Tuple2('Vortex', 'Whirlpool; whirlwind; center of turbulence')),
-			_Utils_Tuple2(
-			795,
-			_Utils_Tuple2('Warranted', 'Justified')),
-			_Utils_Tuple2(
-			796,
-			_Utils_Tuple2('Wary', 'Careful; cautious')),
-			_Utils_Tuple2(
-			797,
-			_Utils_Tuple2('Welter', 'To wallow or roll; toss about; be in turmoil')),
-			_Utils_Tuple2(
-			798,
-			_Utils_Tuple2('Whimsical', 'Fanciful; unpredictable')),
-			_Utils_Tuple2(
-			799,
-			_Utils_Tuple2('Wistful', 'Vaguely longing; sadly thoughtful')),
-			_Utils_Tuple2(
-			800,
-			_Utils_Tuple2('Zealot', 'One who is fanatically devoted to a cause'))
-		]));
-var $author$project$Main$init = A4(
-	$author$project$Main$Model,
-	$author$project$Data$data,
-	$author$project$Main$Default,
-	_Utils_Tuple2(0, 0),
-	_Utils_Tuple2(1, 800));
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -7625,6 +5114,25 @@ var $elm$json$Json$Decode$indent = function (str) {
 		'\n    ',
 		A2($elm$core$String$split, '\n', str));
 };
+var $elm$core$List$foldl = F3(
+	function (func, acc, list) {
+		foldl:
+		while (true) {
+			if (!list.b) {
+				return acc;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				var $temp$func = func,
+					$temp$acc = A2(func, x, acc),
+					$temp$list = xs;
+				func = $temp$func;
+				acc = $temp$acc;
+				list = $temp$list;
+				continue foldl;
+			}
+		}
+	});
 var $elm$core$List$length = function (xs) {
 	return A3(
 		$elm$core$List$foldl,
@@ -8736,6 +6244,8 @@ var $elm$browser$Debugger$Main$cornerView = function (model) {
 		$elm$browser$Debugger$History$size(model.history),
 		model.overlay);
 };
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
 var $elm$core$Set$foldr = F3(
 	function (func, initialState, _v0) {
 		var dict = _v0.a;
@@ -8762,6 +6272,115 @@ var $elm$browser$Debugger$Main$getUserModel = function (model) {
 };
 var $elm$browser$Debugger$Main$initialWindowHeight = 420;
 var $elm$browser$Debugger$Main$initialWindowWidth = 900;
+var $elm$core$Dict$Black = {$: 'Black'};
+var $elm$core$Dict$RBNode_elm_builtin = F5(
+	function (a, b, c, d, e) {
+		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
+	});
+var $elm$core$Dict$Red = {$: 'Red'};
+var $elm$core$Dict$balance = F5(
+	function (color, key, value, left, right) {
+		if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Red')) {
+			var _v1 = right.a;
+			var rK = right.b;
+			var rV = right.c;
+			var rLeft = right.d;
+			var rRight = right.e;
+			if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
+				var _v3 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var lLeft = left.d;
+				var lRight = left.e;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Red,
+					key,
+					value,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					color,
+					rK,
+					rV,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, left, rLeft),
+					rRight);
+			}
+		} else {
+			if ((((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) && (left.d.$ === 'RBNode_elm_builtin')) && (left.d.a.$ === 'Red')) {
+				var _v5 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var _v6 = left.d;
+				var _v7 = _v6.a;
+				var llK = _v6.b;
+				var llV = _v6.c;
+				var llLeft = _v6.d;
+				var llRight = _v6.e;
+				var lRight = left.e;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Red,
+					lK,
+					lV,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, lRight, right));
+			} else {
+				return A5($elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
+			}
+		}
+	});
+var $elm$core$Basics$compare = _Utils_compare;
+var $elm$core$Dict$insertHelp = F3(
+	function (key, value, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+		} else {
+			var nColor = dict.a;
+			var nKey = dict.b;
+			var nValue = dict.c;
+			var nLeft = dict.d;
+			var nRight = dict.e;
+			var _v1 = A2($elm$core$Basics$compare, key, nKey);
+			switch (_v1.$) {
+				case 'LT':
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						A3($elm$core$Dict$insertHelp, key, value, nLeft),
+						nRight);
+				case 'EQ':
+					return A5($elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
+				default:
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						nLeft,
+						A3($elm$core$Dict$insertHelp, key, value, nRight));
+			}
+		}
+	});
+var $elm$core$Dict$insert = F3(
+	function (key, value, dict) {
+		var _v0 = A3($elm$core$Dict$insertHelp, key, value, dict);
+		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
+			var _v1 = _v0.a;
+			var k = _v0.b;
+			var v = _v0.c;
+			var l = _v0.d;
+			var r = _v0.e;
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
+		} else {
+			var x = _v0;
+			return x;
+		}
+	});
 var $elm$browser$Debugger$Main$cachedHistory = function (model) {
 	var _v0 = model.state;
 	if (_v0.$ === 'Running') {
@@ -10615,6 +8234,18 @@ var $elm$browser$Debugger$Metadata$Union = F2(
 	function (args, tags) {
 		return {args: args, tags: tags};
 	});
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
 var $elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
 var $elm$json$Json$Decode$dict = function (decoder) {
 	return A2(
@@ -12950,99 +10581,2930 @@ var $elm$core$Basics$never = function (_v0) {
 		continue never;
 	}
 };
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
-var $elm$browser$Browser$sandbox = function (impl) {
-	return _Browser_element(
-		{
-			init: function (_v0) {
-				return _Utils_Tuple2(impl.init, $elm$core$Platform$Cmd$none);
-			},
-			subscriptions: function (_v1) {
-				return $elm$core$Platform$Sub$none;
-			},
-			update: F2(
-				function (msg, model) {
-					return _Utils_Tuple2(
-						A2(impl.update, msg, model),
-						$elm$core$Platform$Cmd$none);
-				}),
-			view: impl.view
-		});
-};
+var $elm$browser$Browser$element = _Browser_element;
+var $author$project$Main$Model = F5(
+	function (wordMeanings, mode, quizRange, wordsListRange, quizOptions) {
+		return {mode: mode, quizOptions: quizOptions, quizRange: quizRange, wordMeanings: wordMeanings, wordsListRange: wordsListRange};
+	});
 var $author$project$Main$WordsList = function (a) {
 	return {$: 'WordsList', a: a};
 };
+var $author$project$Data$data = $elm$core$Dict$fromList(
+	_List_fromArray(
+		[
+			_Utils_Tuple2(
+			1,
+			_Utils_Tuple2('Abate', 'To decrease; reduce')),
+			_Utils_Tuple2(
+			2,
+			_Utils_Tuple2('Abdicate', 'To give up a posiiton, right, or power')),
+			_Utils_Tuple2(
+			3,
+			_Utils_Tuple2('Aberrant', 'Deviating from what is normal')),
+			_Utils_Tuple2(
+			4,
+			_Utils_Tuple2('Abeyance', 'A temporary suppression or suspension')),
+			_Utils_Tuple2(
+			5,
+			_Utils_Tuple2('Abject', 'Miserable; pitiful')),
+			_Utils_Tuple2(
+			6,
+			_Utils_Tuple2('Abjure', 'To reject; abandon formally')),
+			_Utils_Tuple2(
+			7,
+			_Utils_Tuple2('Abscission', 'The act of cutting; the natural seperation of a leaf or other part of a plant')),
+			_Utils_Tuple2(
+			8,
+			_Utils_Tuple2('Abscond', 'To depart secretly')),
+			_Utils_Tuple2(
+			9,
+			_Utils_Tuple2('Abstemious', 'Moderate in appetite')),
+			_Utils_Tuple2(
+			10,
+			_Utils_Tuple2('Abstinence', 'The giving up of certain pleasures')),
+			_Utils_Tuple2(
+			11,
+			_Utils_Tuple2('Abysmal', 'Very bad')),
+			_Utils_Tuple2(
+			12,
+			_Utils_Tuple2('Accretion', 'Growth in size or increase in amount')),
+			_Utils_Tuple2(
+			13,
+			_Utils_Tuple2('Accrue', 'To accumulate; grow by additions')),
+			_Utils_Tuple2(
+			14,
+			_Utils_Tuple2('Adamant', 'Uncompromising; unyielding')),
+			_Utils_Tuple2(
+			15,
+			_Utils_Tuple2('Adjunct', 'Something added, attached, or joined')),
+			_Utils_Tuple2(
+			16,
+			_Utils_Tuple2('Admonish', 'To caution or reprimand')),
+			_Utils_Tuple2(
+			17,
+			_Utils_Tuple2('Adulterate', 'To corrupt or make impure')),
+			_Utils_Tuple2(
+			18,
+			_Utils_Tuple2('Aesthetic', 'Relating to beauty or art')),
+			_Utils_Tuple2(
+			19,
+			_Utils_Tuple2('Affected', 'Pretentious, phony')),
+			_Utils_Tuple2(
+			20,
+			_Utils_Tuple2('Affinity', 'Fondness; liking; similarity')),
+			_Utils_Tuple2(
+			21,
+			_Utils_Tuple2('Aggrandize', 'To make larger or greater')),
+			_Utils_Tuple2(
+			22,
+			_Utils_Tuple2('Aggregate', 'Amounting to a whole; total')),
+			_Utils_Tuple2(
+			23,
+			_Utils_Tuple2('Alacrity', 'Cheerful willingness; eagerness; speed')),
+			_Utils_Tuple2(
+			24,
+			_Utils_Tuple2('Alchemy', 'Medieval chemical philosophy based on chaning metal into gold; a seemingly magical power or process of transmutation')),
+			_Utils_Tuple2(
+			25,
+			_Utils_Tuple2('Allay', 'To lessen; ease; soothe')),
+			_Utils_Tuple2(
+			26,
+			_Utils_Tuple2('Alleviate', 'To relieve; improve partially')),
+			_Utils_Tuple2(
+			27,
+			_Utils_Tuple2('Alloy', 'A combination; a mixture of two or more metals')),
+			_Utils_Tuple2(
+			28,
+			_Utils_Tuple2('Allure', 'The power to entice by charm')),
+			_Utils_Tuple2(
+			29,
+			_Utils_Tuple2('Amalgamate', 'To combine into a unified whole')),
+			_Utils_Tuple2(
+			30,
+			_Utils_Tuple2('Ambiguous', 'Unclear or doubtful in meaning')),
+			_Utils_Tuple2(
+			31,
+			_Utils_Tuple2('Ambivalence', 'The state of having conflicting emotional attitudes')),
+			_Utils_Tuple2(
+			32,
+			_Utils_Tuple2('Ambrosia', 'Something delicious; the food of the gods')),
+			_Utils_Tuple2(
+			33,
+			_Utils_Tuple2('Ameliorate', 'To improve')),
+			_Utils_Tuple2(
+			34,
+			_Utils_Tuple2('Amenable', 'Agreeable; cooperative; suited')),
+			_Utils_Tuple2(
+			35,
+			_Utils_Tuple2('Amenity', 'Something that increases comfort')),
+			_Utils_Tuple2(
+			36,
+			_Utils_Tuple2('Amulet', 'Ornament worn as a charm against evil spirits')),
+			_Utils_Tuple2(
+			37,
+			_Utils_Tuple2('Anachronism', 'Something out of the proper time')),
+			_Utils_Tuple2(
+			38,
+			_Utils_Tuple2('Analgesic', 'Medication that reduces or eliminates pain')),
+			_Utils_Tuple2(
+			39,
+			_Utils_Tuple2('Analogous', 'Comparable')),
+			_Utils_Tuple2(
+			40,
+			_Utils_Tuple2('Anarchy', 'Absense of government; state of disorder')),
+			_Utils_Tuple2(
+			41,
+			_Utils_Tuple2('Anodyne', 'Something that calms or soothes pain')),
+			_Utils_Tuple2(
+			42,
+			_Utils_Tuple2('Anomalous', 'Irregular; deviating from the norm')),
+			_Utils_Tuple2(
+			43,
+			_Utils_Tuple2('Antecedent', 'Something that comes before')),
+			_Utils_Tuple2(
+			44,
+			_Utils_Tuple2('Antediluvian', 'Prehistoric')),
+			_Utils_Tuple2(
+			45,
+			_Utils_Tuple2('Antipathy', 'Dislike; hostility')),
+			_Utils_Tuple2(
+			46,
+			_Utils_Tuple2('Apathy', 'Indifference')),
+			_Utils_Tuple2(
+			47,
+			_Utils_Tuple2('Apex', 'The highest point')),
+			_Utils_Tuple2(
+			48,
+			_Utils_Tuple2('Apogee', 'The point in an orbit most distant from the body being orbited; the highest point')),
+			_Utils_Tuple2(
+			49,
+			_Utils_Tuple2('Apothegm', 'A terse, witty saying')),
+			_Utils_Tuple2(
+			50,
+			_Utils_Tuple2('Appease', 'To calm; pacify; placate')),
+			_Utils_Tuple2(
+			51,
+			_Utils_Tuple2('Appeallation', 'Name')),
+			_Utils_Tuple2(
+			52,
+			_Utils_Tuple2('Apposite', 'Strikingly appropriate and relevant')),
+			_Utils_Tuple2(
+			53,
+			_Utils_Tuple2('Apprise', 'To inform')),
+			_Utils_Tuple2(
+			54,
+			_Utils_Tuple2('Approbation', 'Praise; approval')),
+			_Utils_Tuple2(
+			55,
+			_Utils_Tuple2('Appropriate', 'To take possession for one\'s own use; confiscate')),
+			_Utils_Tuple2(
+			56,
+			_Utils_Tuple2('Apropos', 'Relevant')),
+			_Utils_Tuple2(
+			57,
+			_Utils_Tuple2('Arabesque', 'Ornate design featuring intertwined curves; a ballet position in which one leg is extended in back while the other supports the weight of the body')),
+			_Utils_Tuple2(
+			58,
+			_Utils_Tuple2('Archeology', 'The study of material evidence of past human life')),
+			_Utils_Tuple2(
+			59,
+			_Utils_Tuple2('Ardor', 'Great emotion or passion')),
+			_Utils_Tuple2(
+			60,
+			_Utils_Tuple2('Ardous', 'Extremely difficult; laborious')),
+			_Utils_Tuple2(
+			61,
+			_Utils_Tuple2('Argot', 'A specialized vocabulary used by a group')),
+			_Utils_Tuple2(
+			62,
+			_Utils_Tuple2('Arrest', 'To stop; to seize')),
+			_Utils_Tuple2(
+			63,
+			_Utils_Tuple2('Artifact', 'Item made by human craft')),
+			_Utils_Tuple2(
+			64,
+			_Utils_Tuple2('Artless', 'Guilesless; natural')),
+			_Utils_Tuple2(
+			65,
+			_Utils_Tuple2('Ascetic', 'One who practices self-denial')),
+			_Utils_Tuple2(
+			66,
+			_Utils_Tuple2('Asperity', 'Severity; harshness; irritability')),
+			_Utils_Tuple2(
+			67,
+			_Utils_Tuple2('Aspersion', 'Slander; false rumor')),
+			_Utils_Tuple2(
+			68,
+			_Utils_Tuple2('Assiduous', 'Diligent; hard-working')),
+			_Utils_Tuple2(
+			69,
+			_Utils_Tuple2('Assuage', 'To make less severe')),
+			_Utils_Tuple2(
+			70,
+			_Utils_Tuple2('Astringent', 'Harsh; severe')),
+			_Utils_Tuple2(
+			71,
+			_Utils_Tuple2('Asylum', 'Place of refuge or shelter')),
+			_Utils_Tuple2(
+			72,
+			_Utils_Tuple2('Atavism', 'Return of a trait after a period of absence')),
+			_Utils_Tuple2(
+			73,
+			_Utils_Tuple2('Attenuate', 'To weaken')),
+			_Utils_Tuple2(
+			74,
+			_Utils_Tuple2('Audacious', 'Bold; daring')),
+			_Utils_Tuple2(
+			75,
+			_Utils_Tuple2('Austere', 'Stern; unadorned')),
+			_Utils_Tuple2(
+			76,
+			_Utils_Tuple2('Autonomous', 'Self-governing; independent')),
+			_Utils_Tuple2(
+			77,
+			_Utils_Tuple2('Avarice', 'Greed')),
+			_Utils_Tuple2(
+			78,
+			_Utils_Tuple2('Aver', 'To affirm; declare to be true')),
+			_Utils_Tuple2(
+			79,
+			_Utils_Tuple2('Avocation', 'Secondary occupation')),
+			_Utils_Tuple2(
+			80,
+			_Utils_Tuple2('Avuncular', 'Like an uncle; benevolent and tolerant')),
+			_Utils_Tuple2(
+			81,
+			_Utils_Tuple2('Axiomatic', 'Taken for granted')),
+			_Utils_Tuple2(
+			82,
+			_Utils_Tuple2('Bacchanalian', 'Pertaining to riotous or drunken festivity; pertaining to revelry')),
+			_Utils_Tuple2(
+			83,
+			_Utils_Tuple2('Banal', 'Commonplace; trite')),
+			_Utils_Tuple2(
+			84,
+			_Utils_Tuple2('Banter', 'Playful conversation')),
+			_Utils_Tuple2(
+			85,
+			_Utils_Tuple2('Bard', 'Poet')),
+			_Utils_Tuple2(
+			86,
+			_Utils_Tuple2('Bawdy', 'Obscene')),
+			_Utils_Tuple2(
+			87,
+			_Utils_Tuple2('Beatify', 'To sanctify; to bless; to ascribe virtue to')),
+			_Utils_Tuple2(
+			88,
+			_Utils_Tuple2('Bedizen', 'To dress in a vulgar, showy manner')),
+			_Utils_Tuple2(
+			89,
+			_Utils_Tuple2('Behemoth', 'Huge creature; anything very large and powerful')),
+			_Utils_Tuple2(
+			90,
+			_Utils_Tuple2('Belie', 'To contradict; misinterpret; give a false impression')),
+			_Utils_Tuple2(
+			91,
+			_Utils_Tuple2('Beneficent', 'Kindly; doing good')),
+			_Utils_Tuple2(
+			92,
+			_Utils_Tuple2('Bifurcate', 'To divide into two parts')),
+			_Utils_Tuple2(
+			93,
+			_Utils_Tuple2('Blandishment', 'Flattery')),
+			_Utils_Tuple2(
+			94,
+			_Utils_Tuple2('Blase', 'Bored because of frequent indulgence; unconcerned')),
+			_Utils_Tuple2(
+			95,
+			_Utils_Tuple2('Bolster', 'To give a boost to; prop up; support')),
+			_Utils_Tuple2(
+			96,
+			_Utils_Tuple2('Bombastic', 'Pompous; using inflated language')),
+			_Utils_Tuple2(
+			97,
+			_Utils_Tuple2('Boorish', 'Rude; insensitive')),
+			_Utils_Tuple2(
+			98,
+			_Utils_Tuple2('Bovine', 'cowlike')),
+			_Utils_Tuple2(
+			99,
+			_Utils_Tuple2('Brazen', 'Bold; shameless')),
+			_Utils_Tuple2(
+			100,
+			_Utils_Tuple2('Broach', 'To mention for the first time')),
+			_Utils_Tuple2(
+			101,
+			_Utils_Tuple2('Bucolic', 'Characteristic of the countryside; rustic; pastoral')),
+			_Utils_Tuple2(
+			102,
+			_Utils_Tuple2('Burgeon', 'To flourish')),
+			_Utils_Tuple2(
+			103,
+			_Utils_Tuple2('Burnish', 'To polish')),
+			_Utils_Tuple2(
+			104,
+			_Utils_Tuple2('Buttress', 'To reinforce; support')),
+			_Utils_Tuple2(
+			105,
+			_Utils_Tuple2('Cacophonous', 'Unpleasant or harsh-sounding')),
+			_Utils_Tuple2(
+			106,
+			_Utils_Tuple2('Cadge', 'To beg; sponge')),
+			_Utils_Tuple2(
+			107,
+			_Utils_Tuple2('Callous', 'Thick-skinned; insensitive')),
+			_Utils_Tuple2(
+			108,
+			_Utils_Tuple2('Calumny', 'Flase and malicious accusation; slander')),
+			_Utils_Tuple2(
+			109,
+			_Utils_Tuple2('Canard', 'False, deliberately misleading story')),
+			_Utils_Tuple2(
+			110,
+			_Utils_Tuple2('Canon', 'An established principle; a basis or standard for judgement; a group of literary works')),
+			_Utils_Tuple2(
+			111,
+			_Utils_Tuple2('Cant', 'Insincere talk; language of a particular group')),
+			_Utils_Tuple2(
+			112,
+			_Utils_Tuple2('Cantankerous', 'Irritable; ill-humored')),
+			_Utils_Tuple2(
+			113,
+			_Utils_Tuple2('Capricious', 'Fickle')),
+			_Utils_Tuple2(
+			114,
+			_Utils_Tuple2('Captious', 'Faultfinding; intended to entrap, as in an argument')),
+			_Utils_Tuple2(
+			115,
+			_Utils_Tuple2('Cardinal', 'Of foremost importance')),
+			_Utils_Tuple2(
+			116,
+			_Utils_Tuple2('Carnal', 'Of the flesh or body; related to physical appetites')),
+			_Utils_Tuple2(
+			117,
+			_Utils_Tuple2('Carping', 'To find fault; complain')),
+			_Utils_Tuple2(
+			118,
+			_Utils_Tuple2('Cartography', 'Science of making maps')),
+			_Utils_Tuple2(
+			119,
+			_Utils_Tuple2('Caste', 'Any of the hereditary social classes of Hindu society; social stratification')),
+			_Utils_Tuple2(
+			120,
+			_Utils_Tuple2('Castigation', 'Punishment; chastisement; criticism')),
+			_Utils_Tuple2(
+			121,
+			_Utils_Tuple2('Cataclysm', 'A violent upheaval that causes great destruction and change')),
+			_Utils_Tuple2(
+			122,
+			_Utils_Tuple2('Catalyst', 'Something causing change')),
+			_Utils_Tuple2(
+			123,
+			_Utils_Tuple2('Categorical', 'Absolute; without exception')),
+			_Utils_Tuple2(
+			124,
+			_Utils_Tuple2('Caucus', 'Smaller group within an organization')),
+			_Utils_Tuple2(
+			125,
+			_Utils_Tuple2('Causal', 'Involving a cause')),
+			_Utils_Tuple2(
+			126,
+			_Utils_Tuple2('Caustic', 'Sarcastically biting; burning')),
+			_Utils_Tuple2(
+			127,
+			_Utils_Tuple2('Celestial', 'Concerning the sky or heavens; sublime')),
+			_Utils_Tuple2(
+			128,
+			_Utils_Tuple2('Centrifugal', 'Moving away from a center')),
+			_Utils_Tuple2(
+			129,
+			_Utils_Tuple2('Centripetal', 'Moving or directed toward a center')),
+			_Utils_Tuple2(
+			130,
+			_Utils_Tuple2('Champion', 'To defend or support')),
+			_Utils_Tuple2(
+			131,
+			_Utils_Tuple2('Chasten', 'To correct by punishment or reproof; to restrain or subdue')),
+			_Utils_Tuple2(
+			132,
+			_Utils_Tuple2('Chicanery', 'Trickery; fraud')),
+			_Utils_Tuple2(
+			133,
+			_Utils_Tuple2('Chivalry', 'The qualities idealized by knighthood such as bravery and gallantry towards women')),
+			_Utils_Tuple2(
+			134,
+			_Utils_Tuple2('Churlish', 'Rude; boorish')),
+			_Utils_Tuple2(
+			135,
+			_Utils_Tuple2('Circuitous', 'Roundabout')),
+			_Utils_Tuple2(
+			136,
+			_Utils_Tuple2('Clairvoyant', 'One who can predict the future; psychic')),
+			_Utils_Tuple2(
+			137,
+			_Utils_Tuple2('Clamor', 'Noisy outcry')),
+			_Utils_Tuple2(
+			138,
+			_Utils_Tuple2('Clique', 'A small, exclusive group')),
+			_Utils_Tuple2(
+			139,
+			_Utils_Tuple2('Cloister', 'To confine; seclude')),
+			_Utils_Tuple2(
+			140,
+			_Utils_Tuple2('Coagulate', 'Thicken; congeal')),
+			_Utils_Tuple2(
+			141,
+			_Utils_Tuple2('Coalesce', 'To cause to become one')),
+			_Utils_Tuple2(
+			142,
+			_Utils_Tuple2('Coda', 'A concluding part of a literary or musical composition; something that summarizes or concludes')),
+			_Utils_Tuple2(
+			143,
+			_Utils_Tuple2('Codify', 'To sytematize')),
+			_Utils_Tuple2(
+			144,
+			_Utils_Tuple2('Cognizant', 'Informed; conscious; aware')),
+			_Utils_Tuple2(
+			145,
+			_Utils_Tuple2('Collage', 'Artistic composition of materials pasted over a surface; an assemblage of diverse elements')),
+			_Utils_Tuple2(
+			146,
+			_Utils_Tuple2('Commensurate', 'Proportional')),
+			_Utils_Tuple2(
+			147,
+			_Utils_Tuple2('Compendium', 'Brief, comprehensive summary')),
+			_Utils_Tuple2(
+			148,
+			_Utils_Tuple2('Complacent', 'Self-satisfied')),
+			_Utils_Tuple2(
+			149,
+			_Utils_Tuple2('Complaisant', 'Overly polite; willing to please; obliging')),
+			_Utils_Tuple2(
+			150,
+			_Utils_Tuple2('Complement', 'Something that completes or makes up a whole')),
+			_Utils_Tuple2(
+			151,
+			_Utils_Tuple2('Compliant', 'Yielding')),
+			_Utils_Tuple2(
+			152,
+			_Utils_Tuple2('Compunction', 'Uneasiness caused by guilt')),
+			_Utils_Tuple2(
+			153,
+			_Utils_Tuple2('Concave', 'Curving inward')),
+			_Utils_Tuple2(
+			154,
+			_Utils_Tuple2('Conciliatory', 'Overcoming distrust or hostility')),
+			_Utils_Tuple2(
+			155,
+			_Utils_Tuple2('Concoct', 'To invent')),
+			_Utils_Tuple2(
+			156,
+			_Utils_Tuple2('Concomitant', 'Existing concurrently')),
+			_Utils_Tuple2(
+			157,
+			_Utils_Tuple2('Condone', 'To overlook voluntarily; forgive')),
+			_Utils_Tuple2(
+			158,
+			_Utils_Tuple2('Confound', 'To baffle; perplex; mix up')),
+			_Utils_Tuple2(
+			159,
+			_Utils_Tuple2('Congenial', 'Similar in tastes and habits; friendly; suited to')),
+			_Utils_Tuple2(
+			160,
+			_Utils_Tuple2('Conjugal', 'Pertaining to marriage agreement')),
+			_Utils_Tuple2(
+			161,
+			_Utils_Tuple2('Connoisseur', 'A person possessing expert knowledge or training; a person of informed and discriminating taste')),
+			_Utils_Tuple2(
+			162,
+			_Utils_Tuple2('Conscript', 'Person compulsorily enrolled for military service')),
+			_Utils_Tuple2(
+			163,
+			_Utils_Tuple2('Consecrate', 'To declare sacred')),
+			_Utils_Tuple2(
+			164,
+			_Utils_Tuple2('Contend', 'To assert')),
+			_Utils_Tuple2(
+			165,
+			_Utils_Tuple2('Contentious', 'Quarrelsome; causing quarrels')),
+			_Utils_Tuple2(
+			166,
+			_Utils_Tuple2('Contiguous', 'Touching; neighboring; connecting without a break')),
+			_Utils_Tuple2(
+			167,
+			_Utils_Tuple2('Continence', 'Self-control; abstention from sexual activity')),
+			_Utils_Tuple2(
+			168,
+			_Utils_Tuple2('Contrite', 'Very sorrowful for a wrong')),
+			_Utils_Tuple2(
+			169,
+			_Utils_Tuple2('Contumacious', 'Disobedient; rebellious')),
+			_Utils_Tuple2(
+			170,
+			_Utils_Tuple2('Conundrum', 'Riddle; puzzle with no solution')),
+			_Utils_Tuple2(
+			171,
+			_Utils_Tuple2('Convention', 'Practice widely observed in a group; custom; accepted technique or device')),
+			_Utils_Tuple2(
+			172,
+			_Utils_Tuple2('Converge', 'To approach; come together; tend to meet')),
+			_Utils_Tuple2(
+			173,
+			_Utils_Tuple2('Convex', 'Curved outwards')),
+			_Utils_Tuple2(
+			174,
+			_Utils_Tuple2('Convivial', 'Sociable')),
+			_Utils_Tuple2(
+			175,
+			_Utils_Tuple2('Convoluted', 'Twisted; complicated')),
+			_Utils_Tuple2(
+			176,
+			_Utils_Tuple2('Copious', 'Abundant; plentiful')),
+			_Utils_Tuple2(
+			177,
+			_Utils_Tuple2('Coquette', 'Woman who flirts')),
+			_Utils_Tuple2(
+			178,
+			_Utils_Tuple2('Cornucopia', 'Horn overflowing with fruit and grain; state of abundance')),
+			_Utils_Tuple2(
+			179,
+			_Utils_Tuple2('Cosmology', 'Study of the universe as a totality; theory of the origin and structure of the universe')),
+			_Utils_Tuple2(
+			180,
+			_Utils_Tuple2('Covert', 'Hidden; secret')),
+			_Utils_Tuple2(
+			181,
+			_Utils_Tuple2('Covetous', 'Desiring something owned by another')),
+			_Utils_Tuple2(
+			182,
+			_Utils_Tuple2('Cozen', 'To mislead by trick or fraud; deceive')),
+			_Utils_Tuple2(
+			183,
+			_Utils_Tuple2('Craven', 'Cowardly')),
+			_Utils_Tuple2(
+			184,
+			_Utils_Tuple2('Credence', 'Acceptance of something as true')),
+			_Utils_Tuple2(
+			185,
+			_Utils_Tuple2('Credo', 'Statement of belief or principle; creed')),
+			_Utils_Tuple2(
+			186,
+			_Utils_Tuple2('Daunt', 'To discourage; intimidate; dishearten')),
+			_Utils_Tuple2(
+			187,
+			_Utils_Tuple2('Dearth', 'Scarcity')),
+			_Utils_Tuple2(
+			188,
+			_Utils_Tuple2('Debauchery', 'Corruption')),
+			_Utils_Tuple2(
+			189,
+			_Utils_Tuple2('Decorum', 'Proper behavior')),
+			_Utils_Tuple2(
+			190,
+			_Utils_Tuple2('Defame', 'To malign; harm someone\'s reputation')),
+			_Utils_Tuple2(
+			191,
+			_Utils_Tuple2('Default', 'To fail to act')),
+			_Utils_Tuple2(
+			192,
+			_Utils_Tuple2('Deference', 'Respect; regard for another\'s wish')),
+			_Utils_Tuple2(
+			193,
+			_Utils_Tuple2('Defunct', 'No longer existing')),
+			_Utils_Tuple2(
+			194,
+			_Utils_Tuple2('Delineate', 'To represent or depict')),
+			_Utils_Tuple2(
+			195,
+			_Utils_Tuple2('Demographic', 'Related to population balance')),
+			_Utils_Tuple2(
+			196,
+			_Utils_Tuple2('Demotic', 'Pertaining to people')),
+			_Utils_Tuple2(
+			197,
+			_Utils_Tuple2('Demur', 'To express doubt')),
+			_Utils_Tuple2(
+			198,
+			_Utils_Tuple2('Denigrate', 'To slur someone\'s reputation')),
+			_Utils_Tuple2(
+			199,
+			_Utils_Tuple2('Denizen', 'An inhabitant; a regular visitor')),
+			_Utils_Tuple2(
+			200,
+			_Utils_Tuple2('Denouement', 'Outcome; unraveling of the plot of a play or work of literature')),
+			_Utils_Tuple2(
+			201,
+			_Utils_Tuple2('Deride', 'To mock')),
+			_Utils_Tuple2(
+			202,
+			_Utils_Tuple2('Derivative', 'Something derived; unoriginal')),
+			_Utils_Tuple2(
+			203,
+			_Utils_Tuple2('Desiccate', 'To dry completely')),
+			_Utils_Tuple2(
+			204,
+			_Utils_Tuple2('Desuetude', 'State of disuse')),
+			_Utils_Tuple2(
+			205,
+			_Utils_Tuple2('Desultory', 'Random; disconnected; rambling')),
+			_Utils_Tuple2(
+			206,
+			_Utils_Tuple2('Deterrent', 'Something that discourages or hinders')),
+			_Utils_Tuple2(
+			207,
+			_Utils_Tuple2('Detraction', 'The act of taking away; derogatory comment on a person\'s character')),
+			_Utils_Tuple2(
+			208,
+			_Utils_Tuple2('Diaphanous', 'Transparent; fine-textured; insubstantial; vague')),
+			_Utils_Tuple2(
+			209,
+			_Utils_Tuple2('Diatribe', 'Bitter verbal attack')),
+			_Utils_Tuple2(
+			210,
+			_Utils_Tuple2('Dichotomy', 'Division into two usually contradictory parts')),
+			_Utils_Tuple2(
+			211,
+			_Utils_Tuple2('Diffidence', 'Shyness; lack of confidence')),
+			_Utils_Tuple2(
+			212,
+			_Utils_Tuple2('Diffuse', 'To spread out')),
+			_Utils_Tuple2(
+			213,
+			_Utils_Tuple2('Digression', 'Act of straying from the main point')),
+			_Utils_Tuple2(
+			214,
+			_Utils_Tuple2('Dirge', 'Funeral Hymn')),
+			_Utils_Tuple2(
+			215,
+			_Utils_Tuple2('Disabuse', 'To free from a misconception')),
+			_Utils_Tuple2(
+			216,
+			_Utils_Tuple2('Discerning', 'Perceptive; exhibiting keen insight and good judgement')),
+			_Utils_Tuple2(
+			217,
+			_Utils_Tuple2('Discomfit', 'To make uneasy; disconcert')),
+			_Utils_Tuple2(
+			218,
+			_Utils_Tuple2('Discordant', 'Not in tune')),
+			_Utils_Tuple2(
+			219,
+			_Utils_Tuple2('Discredit', 'To dishonor; disgrace; cause to be doubted')),
+			_Utils_Tuple2(
+			220,
+			_Utils_Tuple2('Discrepancy', 'Difference between')),
+			_Utils_Tuple2(
+			221,
+			_Utils_Tuple2('Discrete', 'Constituting a seperate thing; distinct')),
+			_Utils_Tuple2(
+			222,
+			_Utils_Tuple2('Discretion', 'Quality of showing self-restraint in speech or actions; circumspection; freedom to act on one\'s own')),
+			_Utils_Tuple2(
+			223,
+			_Utils_Tuple2('Disingenuous', 'Not candid; crafty')),
+			_Utils_Tuple2(
+			224,
+			_Utils_Tuple2('Disinterested', 'Unprejudiced; objective')),
+			_Utils_Tuple2(
+			225,
+			_Utils_Tuple2('Disjointed', 'Lacking order or coherence; dislocated')),
+			_Utils_Tuple2(
+			226,
+			_Utils_Tuple2('Dismiss', 'Put away from consideration; reject')),
+			_Utils_Tuple2(
+			227,
+			_Utils_Tuple2('Disparage', 'To belittle')),
+			_Utils_Tuple2(
+			228,
+			_Utils_Tuple2('Disparate', 'Dissimilar')),
+			_Utils_Tuple2(
+			229,
+			_Utils_Tuple2('Dissemble', 'To pretend; disguise one\'s motives')),
+			_Utils_Tuple2(
+			230,
+			_Utils_Tuple2('Disseminate', 'To spread; scatter; disperse')),
+			_Utils_Tuple2(
+			231,
+			_Utils_Tuple2('Dissident', 'Person who disagrees about beliefs, etc')),
+			_Utils_Tuple2(
+			232,
+			_Utils_Tuple2('Dissolution', 'Disintegration; debauchery')),
+			_Utils_Tuple2(
+			233,
+			_Utils_Tuple2('Dissonance', 'Discord; lack of harmony')),
+			_Utils_Tuple2(
+			234,
+			_Utils_Tuple2('Distend', 'To expand; swell out')),
+			_Utils_Tuple2(
+			235,
+			_Utils_Tuple2('Distill', 'Extract the essential elements')),
+			_Utils_Tuple2(
+			236,
+			_Utils_Tuple2('Distrait', 'Inattentive; preoccupied')),
+			_Utils_Tuple2(
+			237,
+			_Utils_Tuple2('Diverge', 'To vary; go in different directions from the same point')),
+			_Utils_Tuple2(
+			238,
+			_Utils_Tuple2('Divest', 'To strip; deprive; rid')),
+			_Utils_Tuple2(
+			239,
+			_Utils_Tuple2('Divulge', 'To make known something that is secret')),
+			_Utils_Tuple2(
+			240,
+			_Utils_Tuple2('Doctrinaire', 'Relating to a person who cannot compromise about points of theory or doctrine; dogmatic; unyielding')),
+			_Utils_Tuple2(
+			241,
+			_Utils_Tuple2('Document', 'To provide with written evidence to support')),
+			_Utils_Tuple2(
+			242,
+			_Utils_Tuple2('Doggerel', 'Poor verse')),
+			_Utils_Tuple2(
+			243,
+			_Utils_Tuple2('Dogmatic', 'Stating opinions without proof')),
+			_Utils_Tuple2(
+			244,
+			_Utils_Tuple2('Dormant', 'Inactive')),
+			_Utils_Tuple2(
+			245,
+			_Utils_Tuple2('Dross', 'Waste; worthless matter; trivial matter')),
+			_Utils_Tuple2(
+			246,
+			_Utils_Tuple2('Dupe', 'To deceive; trick')),
+			_Utils_Tuple2(
+			247,
+			_Utils_Tuple2('Ebullient', 'Exhilarated; enthusiastic')),
+			_Utils_Tuple2(
+			248,
+			_Utils_Tuple2('Eclectic', 'Selecting from various sources')),
+			_Utils_Tuple2(
+			249,
+			_Utils_Tuple2('Effervesence', 'State of high spirits or liveliness; the process of bubbling as gas escapes')),
+			_Utils_Tuple2(
+			250,
+			_Utils_Tuple2('Effete', 'Depleted of vitality; overrefined; decadent')),
+			_Utils_Tuple2(
+			251,
+			_Utils_Tuple2('Efficacy', 'Efficiency; effectiveness')),
+			_Utils_Tuple2(
+			252,
+			_Utils_Tuple2('Effrontery', 'Shameless boldness; presumptuousness')),
+			_Utils_Tuple2(
+			253,
+			_Utils_Tuple2('Egoism', 'The tendency to see things in relation to oneself; self-centeredness')),
+			_Utils_Tuple2(
+			254,
+			_Utils_Tuple2('Egotistical', 'Excessively self-centered; conceited')),
+			_Utils_Tuple2(
+			255,
+			_Utils_Tuple2('Elegy', 'A poem or song expressing lamentation')),
+			_Utils_Tuple2(
+			256,
+			_Utils_Tuple2('Elicit', 'To provoke; draw out')),
+			_Utils_Tuple2(
+			257,
+			_Utils_Tuple2('Elixir', 'A substance believed to have the power to cure ills')),
+			_Utils_Tuple2(
+			258,
+			_Utils_Tuple2('Elysian', 'Blissful; delightful')),
+			_Utils_Tuple2(
+			259,
+			_Utils_Tuple2('Emaciated', 'Thin and wasted')),
+			_Utils_Tuple2(
+			260,
+			_Utils_Tuple2('Embellish', 'To adorn; decorate; enhance; make more attractive by adding details')),
+			_Utils_Tuple2(
+			261,
+			_Utils_Tuple2('Emollient', 'Soothing; mollifying')),
+			_Utils_Tuple2(
+			262,
+			_Utils_Tuple2('Empirical', 'Derived from observation or experiment')),
+			_Utils_Tuple2(
+			263,
+			_Utils_Tuple2('Emulate', 'To imitate; copy')),
+			_Utils_Tuple2(
+			264,
+			_Utils_Tuple2('Encomium', 'A formal expression of praise')),
+			_Utils_Tuple2(
+			265,
+			_Utils_Tuple2('Endemic', 'Inherent; belonging to an area')),
+			_Utils_Tuple2(
+			266,
+			_Utils_Tuple2('Enervate', 'To weaken')),
+			_Utils_Tuple2(
+			267,
+			_Utils_Tuple2('Engender', 'To cuase; produce')),
+			_Utils_Tuple2(
+			268,
+			_Utils_Tuple2('Enhance', 'To increase; improve')),
+			_Utils_Tuple2(
+			269,
+			_Utils_Tuple2('Entomology', 'The scientific study of insects')),
+			_Utils_Tuple2(
+			270,
+			_Utils_Tuple2('Enunciate', 'To pronounce clearly')),
+			_Utils_Tuple2(
+			271,
+			_Utils_Tuple2('Ephemeral', 'Short-lived; fleeting')),
+			_Utils_Tuple2(
+			272,
+			_Utils_Tuple2('Epistemology', 'Branch of philosophy that examines the nature of knowledge')),
+			_Utils_Tuple2(
+			273,
+			_Utils_Tuple2('Equable', 'Steady; unvarying; serene')),
+			_Utils_Tuple2(
+			274,
+			_Utils_Tuple2('Equanimity', 'Compsure; calmness')),
+			_Utils_Tuple2(
+			275,
+			_Utils_Tuple2('Equivocate', 'To intentionally use vague language')),
+			_Utils_Tuple2(
+			276,
+			_Utils_Tuple2('Errant', 'Mistaken; straying from the proper course')),
+			_Utils_Tuple2(
+			277,
+			_Utils_Tuple2('Erudite', 'Learned; scholarly')),
+			_Utils_Tuple2(
+			278,
+			_Utils_Tuple2('Esoteric', 'Hard to understand; known only to a few')),
+			_Utils_Tuple2(
+			279,
+			_Utils_Tuple2('Essay', 'To make an attempt; subject to a test')),
+			_Utils_Tuple2(
+			280,
+			_Utils_Tuple2('Estimable', 'Admirable; possible to estimate')),
+			_Utils_Tuple2(
+			281,
+			_Utils_Tuple2('Ethnocentric', 'Based on the attitude that one\'s group is superior')),
+			_Utils_Tuple2(
+			282,
+			_Utils_Tuple2('Etiology', 'Causes or origins')),
+			_Utils_Tuple2(
+			283,
+			_Utils_Tuple2('Etymology', 'Origin and history of a word')),
+			_Utils_Tuple2(
+			284,
+			_Utils_Tuple2('Eugenics', 'Study of factors that influence the hereditary qualities of the human race and ways to improve these qualities')),
+			_Utils_Tuple2(
+			285,
+			_Utils_Tuple2('Eulogy', 'High praise, especially of a person who has recently died')),
+			_Utils_Tuple2(
+			286,
+			_Utils_Tuple2('Euphenism', 'Use of agreeable or inoffensive language in place of unpleasant or offensive language')),
+			_Utils_Tuple2(
+			287,
+			_Utils_Tuple2('Euphoria', 'A feeling of extreme happiness')),
+			_Utils_Tuple2(
+			288,
+			_Utils_Tuple2('Euthanasia', 'Mercy killing')),
+			_Utils_Tuple2(
+			289,
+			_Utils_Tuple2('Evince', 'To show plainly; be an indication of')),
+			_Utils_Tuple2(
+			290,
+			_Utils_Tuple2('Evocative', 'Tending to call to mind or produce a reaction')),
+			_Utils_Tuple2(
+			291,
+			_Utils_Tuple2('Exacerbate', 'To aggravate; make worse')),
+			_Utils_Tuple2(
+			292,
+			_Utils_Tuple2('Exact', 'To force the payment of; demand and obtain by authority')),
+			_Utils_Tuple2(
+			293,
+			_Utils_Tuple2('Exculpate', 'To clear of blame; vindicate')),
+			_Utils_Tuple2(
+			294,
+			_Utils_Tuple2('Execrable', 'Detestable; abhorrent')),
+			_Utils_Tuple2(
+			295,
+			_Utils_Tuple2('Exhort', 'To urge by strong appeals')),
+			_Utils_Tuple2(
+			296,
+			_Utils_Tuple2('Exigency', 'Crisis; urgent requirements')),
+			_Utils_Tuple2(
+			297,
+			_Utils_Tuple2('Existential', 'Having to do with existence; based on experience; having to do with the philosophy of existenialism')),
+			_Utils_Tuple2(
+			298,
+			_Utils_Tuple2('Exorcise', 'To expel evil spirits; free from bad influences')),
+			_Utils_Tuple2(
+			299,
+			_Utils_Tuple2('Expatiate', 'To speak or write at length')),
+			_Utils_Tuple2(
+			300,
+			_Utils_Tuple2('Expatriate', 'To send into exile')),
+			_Utils_Tuple2(
+			301,
+			_Utils_Tuple2('Expiate', 'To atone for')),
+			_Utils_Tuple2(
+			302,
+			_Utils_Tuple2('Explicate', 'To explain; interpret; clarify')),
+			_Utils_Tuple2(
+			303,
+			_Utils_Tuple2('Expository', 'Explanatory')),
+			_Utils_Tuple2(
+			304,
+			_Utils_Tuple2('Extant', 'In existence; not lost')),
+			_Utils_Tuple2(
+			305,
+			_Utils_Tuple2('extemporaneous', 'Unrehearsed')),
+			_Utils_Tuple2(
+			306,
+			_Utils_Tuple2('Extirpate', 'To root up; to destroy')),
+			_Utils_Tuple2(
+			307,
+			_Utils_Tuple2('Extraneous', 'Not essential')),
+			_Utils_Tuple2(
+			308,
+			_Utils_Tuple2('Extrapolation', 'The act of estimation by projecting known information')),
+			_Utils_Tuple2(
+			309,
+			_Utils_Tuple2('Extrinsic', 'Not inherent or essential')),
+			_Utils_Tuple2(
+			310,
+			_Utils_Tuple2('Facetious', 'Humorous')),
+			_Utils_Tuple2(
+			311,
+			_Utils_Tuple2('Facilitate', 'To make less difficult')),
+			_Utils_Tuple2(
+			312,
+			_Utils_Tuple2('Factotum', 'A person who does all sorts of work; a handyman')),
+			_Utils_Tuple2(
+			313,
+			_Utils_Tuple2('Fallacious', 'Based on a false idea or fact; misleading')),
+			_Utils_Tuple2(
+			314,
+			_Utils_Tuple2('Fallow', 'Plowed but not sowed; uncultivated')),
+			_Utils_Tuple2(
+			315,
+			_Utils_Tuple2('Fatuous', 'Foolishly self-satisfied')),
+			_Utils_Tuple2(
+			316,
+			_Utils_Tuple2('Fauna', 'Animals of a period or region')),
+			_Utils_Tuple2(
+			317,
+			_Utils_Tuple2('Fawning', 'Seeking favor by flattering')),
+			_Utils_Tuple2(
+			318,
+			_Utils_Tuple2('Felicitous', 'Suitably expressed; appropriate; well chosen')),
+			_Utils_Tuple2(
+			319,
+			_Utils_Tuple2('Feral', 'Existing in a wild or untamed state')),
+			_Utils_Tuple2(
+			320,
+			_Utils_Tuple2('Fervor', 'Warmth and intensity of emotion')),
+			_Utils_Tuple2(
+			321,
+			_Utils_Tuple2('Fetid', 'Having a bad smell')),
+			_Utils_Tuple2(
+			322,
+			_Utils_Tuple2('Fetter', 'To bind; confine')),
+			_Utils_Tuple2(
+			323,
+			_Utils_Tuple2('Fiat', 'Arbitrary order; authorization')),
+			_Utils_Tuple2(
+			324,
+			_Utils_Tuple2('Fidelity', 'Loyalty; exact correspondence')),
+			_Utils_Tuple2(
+			325,
+			_Utils_Tuple2('Filibuster', 'Use of obstructive tactics in a legislature to block passage of a law')),
+			_Utils_Tuple2(
+			326,
+			_Utils_Tuple2('Finesse', 'To handle with a deceptive or evasive strategy; to use finesse, that is, refinement in performance')),
+			_Utils_Tuple2(
+			327,
+			_Utils_Tuple2('Fissure', 'Crevice')),
+			_Utils_Tuple2(
+			328,
+			_Utils_Tuple2('Flag', 'To droop; grow weak')),
+			_Utils_Tuple2(
+			329,
+			_Utils_Tuple2('Fledgling', 'Beginner; novice')),
+			_Utils_Tuple2(
+			330,
+			_Utils_Tuple2('Flora', 'Plants of a region or era')),
+			_Utils_Tuple2(
+			331,
+			_Utils_Tuple2('Florid', 'Ruddy; reddish; flowery')),
+			_Utils_Tuple2(
+			332,
+			_Utils_Tuple2('Flourish', 'An embellishment or ornamentation')),
+			_Utils_Tuple2(
+			333,
+			_Utils_Tuple2('Flout', 'To treat scornfully')),
+			_Utils_Tuple2(
+			334,
+			_Utils_Tuple2('Flux', 'Flowing; a continuous moving')),
+			_Utils_Tuple2(
+			335,
+			_Utils_Tuple2('Foment', 'To incite; arouse')),
+			_Utils_Tuple2(
+			336,
+			_Utils_Tuple2('Forbearance', 'Patience')),
+			_Utils_Tuple2(
+			337,
+			_Utils_Tuple2('Forestall', 'To prevent; delay')),
+			_Utils_Tuple2(
+			338,
+			_Utils_Tuple2('Formidable', 'Menacing; threatening')),
+			_Utils_Tuple2(
+			339,
+			_Utils_Tuple2('Forswear', 'To renounce; repudiate')),
+			_Utils_Tuple2(
+			340,
+			_Utils_Tuple2('Founder', 'To sink; fail; collapse')),
+			_Utils_Tuple2(
+			341,
+			_Utils_Tuple2('Fracas', 'A loud quarrel; brawl')),
+			_Utils_Tuple2(
+			342,
+			_Utils_Tuple2('Fractious', 'Quarrelsome; unruly; rebellious')),
+			_Utils_Tuple2(
+			343,
+			_Utils_Tuple2('Fresco', 'A painting done on plaster')),
+			_Utils_Tuple2(
+			344,
+			_Utils_Tuple2('Frieze', 'Ornamental band on a wall')),
+			_Utils_Tuple2(
+			345,
+			_Utils_Tuple2('Froward', 'Stubbornly contrary; obstinately disobedient')),
+			_Utils_Tuple2(
+			346,
+			_Utils_Tuple2('Frugality', 'Thrift')),
+			_Utils_Tuple2(
+			347,
+			_Utils_Tuple2('Fulminate', 'To attack loudly; denounce')),
+			_Utils_Tuple2(
+			348,
+			_Utils_Tuple2('Fulsome', 'So excessive as to be disgusting')),
+			_Utils_Tuple2(
+			349,
+			_Utils_Tuple2('Fusion', 'Union; synthesis')),
+			_Utils_Tuple2(
+			350,
+			_Utils_Tuple2('Futile', 'Ineffective; useless; fruitless')),
+			_Utils_Tuple2(
+			351,
+			_Utils_Tuple2('Gainsay', 'To deny; dispute; oppose')),
+			_Utils_Tuple2(
+			352,
+			_Utils_Tuple2('Gambol', 'To frolic; leap playfully')),
+			_Utils_Tuple2(
+			353,
+			_Utils_Tuple2('Garrulous', 'Very talkative; wordy')),
+			_Utils_Tuple2(
+			354,
+			_Utils_Tuple2('Gauche', 'Coarse and uncouth; clumsy')),
+			_Utils_Tuple2(
+			355,
+			_Utils_Tuple2('Geniality', 'Cheerfulness; kindliness; sociability')),
+			_Utils_Tuple2(
+			356,
+			_Utils_Tuple2('Gerrymander', 'To divide an area into voting districts in a way that favors a political party')),
+			_Utils_Tuple2(
+			357,
+			_Utils_Tuple2('Glib', 'Fluent in an insincere way; offhand')),
+			_Utils_Tuple2(
+			358,
+			_Utils_Tuple2('goad', 'To prod; urge on')),
+			_Utils_Tuple2(
+			359,
+			_Utils_Tuple2('Gossamer', 'Sheer; light and delicate, like cobwebs')),
+			_Utils_Tuple2(
+			360,
+			_Utils_Tuple2('Gouge', 'To tear out; scoop out; overcharge')),
+			_Utils_Tuple2(
+			361,
+			_Utils_Tuple2('Grandiloquent', 'Pompous; bombastic')),
+			_Utils_Tuple2(
+			362,
+			_Utils_Tuple2('Gregarious', 'Sociable')),
+			_Utils_Tuple2(
+			363,
+			_Utils_Tuple2('Grouse', 'To complain')),
+			_Utils_Tuple2(
+			364,
+			_Utils_Tuple2('Guileless', 'Free of cunning or deceit; artless')),
+			_Utils_Tuple2(
+			365,
+			_Utils_Tuple2('Guise', 'Outward appearance; false appearance; pretense')),
+			_Utils_Tuple2(
+			366,
+			_Utils_Tuple2('Gullible', 'Easily deceived')),
+			_Utils_Tuple2(
+			367,
+			_Utils_Tuple2('Gustatory', 'Affecting the sense of taste')),
+			_Utils_Tuple2(
+			368,
+			_Utils_Tuple2('Halcyon', 'Calm and peaceful; happy; golden; prosperous')),
+			_Utils_Tuple2(
+			369,
+			_Utils_Tuple2('Hallowed', 'Holy; sacred')),
+			_Utils_Tuple2(
+			370,
+			_Utils_Tuple2('Harrangue', 'Long, pompous speech; tirade')),
+			_Utils_Tuple2(
+			371,
+			_Utils_Tuple2('Harrowing', 'Extremely distressing; terrifying')),
+			_Utils_Tuple2(
+			372,
+			_Utils_Tuple2('Herbivorous', 'Relating to a herbivore, an animal that feeds mainly on plants')),
+			_Utils_Tuple2(
+			373,
+			_Utils_Tuple2('Hermetic', 'Tightly sealed; magical')),
+			_Utils_Tuple2(
+			374,
+			_Utils_Tuple2('Heterodox', 'Unorthodox; not widely accepted')),
+			_Utils_Tuple2(
+			375,
+			_Utils_Tuple2('Hieroglyphics', 'A system of writing in which pictorial symbols represent meaning or sounds; writing or symbols that are difficult to decipher; the symbols used in advanced mathematics')),
+			_Utils_Tuple2(
+			376,
+			_Utils_Tuple2('Hirsute', 'Covered with hair')),
+			_Utils_Tuple2(
+			377,
+			_Utils_Tuple2('Histrionic', 'Relating to exaggerated emotional behavior calculated for effect; theatrical arts or performances')),
+			_Utils_Tuple2(
+			378,
+			_Utils_Tuple2('Homeostasis', 'Automatic maintenance by an organsim of normal temperature, chemical balance, etc within itself')),
+			_Utils_Tuple2(
+			379,
+			_Utils_Tuple2('Homily', 'Sermon; tedious moralizing lecture; platitude')),
+			_Utils_Tuple2(
+			380,
+			_Utils_Tuple2('Homogenous', 'Composed of identical parts; uniform in composition')),
+			_Utils_Tuple2(
+			381,
+			_Utils_Tuple2('Hyperbole', 'Purposeful exaggeration for effect')),
+			_Utils_Tuple2(
+			382,
+			_Utils_Tuple2('Iconoclastic', 'Attacking cherished traditions')),
+			_Utils_Tuple2(
+			383,
+			_Utils_Tuple2('Ideological', 'Relating to ideology, the set of ideas that form the basis of a political or economic system')),
+			_Utils_Tuple2(
+			384,
+			_Utils_Tuple2('Idolatry', 'Idol worship; blind or excessive devotion')),
+			_Utils_Tuple2(
+			385,
+			_Utils_Tuple2('Igneous', 'Produced by fire; volcanic')),
+			_Utils_Tuple2(
+			386,
+			_Utils_Tuple2('Imbroglio', 'Complicated situation; an entanglement')),
+			_Utils_Tuple2(
+			387,
+			_Utils_Tuple2('Immutable', 'Unchangeable')),
+			_Utils_Tuple2(
+			388,
+			_Utils_Tuple2('Impassive', 'Showing no emotions')),
+			_Utils_Tuple2(
+			389,
+			_Utils_Tuple2('Impecunious', 'Poor; having no money')),
+			_Utils_Tuple2(
+			390,
+			_Utils_Tuple2('Impede', 'To hinder; block')),
+			_Utils_Tuple2(
+			391,
+			_Utils_Tuple2('Impermeable', 'Impossible to penetrate')),
+			_Utils_Tuple2(
+			392,
+			_Utils_Tuple2('Imperturbable', 'Not easily disturbed')),
+			_Utils_Tuple2(
+			393,
+			_Utils_Tuple2('Impervious', 'Impossible to penetrate; incapable of being affected')),
+			_Utils_Tuple2(
+			394,
+			_Utils_Tuple2('Impinge', 'To strike; encroach')),
+			_Utils_Tuple2(
+			395,
+			_Utils_Tuple2('Implacable', 'Inflexible; incapable of being pleased')),
+			_Utils_Tuple2(
+			396,
+			_Utils_Tuple2('Implausible', 'Unlikely; unbelievable')),
+			_Utils_Tuple2(
+			397,
+			_Utils_Tuple2('Implict', 'Implied; understood but not stated')),
+			_Utils_Tuple2(
+			398,
+			_Utils_Tuple2('Implode', 'Collapse inward violently')),
+			_Utils_Tuple2(
+			399,
+			_Utils_Tuple2('Imprecation', 'Curse')),
+			_Utils_Tuple2(
+			400,
+			_Utils_Tuple2('Impute', 'To relate a particular cause or source; attribute the fault to; assign as a characteristic')),
+			_Utils_Tuple2(
+			401,
+			_Utils_Tuple2('Inadvertently', 'Carelessly; unintentionally')),
+			_Utils_Tuple2(
+			402,
+			_Utils_Tuple2('Incarnate', 'Having bodily form')),
+			_Utils_Tuple2(
+			403,
+			_Utils_Tuple2('Inchoate', 'Imperfectly formed or formulated')),
+			_Utils_Tuple2(
+			404,
+			_Utils_Tuple2('Incongruity', 'State of not fitting')),
+			_Utils_Tuple2(
+			405,
+			_Utils_Tuple2('Inconsequential', 'Insignificant; unimportant')),
+			_Utils_Tuple2(
+			406,
+			_Utils_Tuple2('Incorporate', 'Introduce something into another thing already in existence; combine')),
+			_Utils_Tuple2(
+			407,
+			_Utils_Tuple2('Incursion', 'Sudden invasion')),
+			_Utils_Tuple2(
+			408,
+			_Utils_Tuple2('Indeterminate', 'Uncertain; indefinite')),
+			_Utils_Tuple2(
+			409,
+			_Utils_Tuple2('Indigence', 'Poverty')),
+			_Utils_Tuple2(
+			410,
+			_Utils_Tuple2('Indolant', 'Habitually lazy; idle')),
+			_Utils_Tuple2(
+			411,
+			_Utils_Tuple2('Ineluctable', 'Not to be avoided or escaped; inevitable')),
+			_Utils_Tuple2(
+			412,
+			_Utils_Tuple2('Inert', 'Unable to move; sluggish')),
+			_Utils_Tuple2(
+			413,
+			_Utils_Tuple2('Ingenuous', 'Naive and trusting; lacking sophistication')),
+			_Utils_Tuple2(
+			414,
+			_Utils_Tuple2('Inherent', 'Firmly established by nature or habit')),
+			_Utils_Tuple2(
+			415,
+			_Utils_Tuple2('Innocuous', 'Harmless')),
+			_Utils_Tuple2(
+			416,
+			_Utils_Tuple2('Insensible', 'Unconcious; unresponsive')),
+			_Utils_Tuple2(
+			417,
+			_Utils_Tuple2('Insinuate', 'To suggest; say indirectly; imply')),
+			_Utils_Tuple2(
+			418,
+			_Utils_Tuple2('Insipid', 'Lacking flavor; dull')),
+			_Utils_Tuple2(
+			419,
+			_Utils_Tuple2('Insouciant', 'Indifferent; lacking concern or care')),
+			_Utils_Tuple2(
+			420,
+			_Utils_Tuple2('Insularity', 'Narrow-mindedness; isolation')),
+			_Utils_Tuple2(
+			421,
+			_Utils_Tuple2('Insuperable', 'Insurmountable; unconquerable')),
+			_Utils_Tuple2(
+			422,
+			_Utils_Tuple2('Intangible', 'Not material')),
+			_Utils_Tuple2(
+			423,
+			_Utils_Tuple2('Interdict', 'To forbid; prohibit; To confront and halt the activities, advance, or entry of')),
+			_Utils_Tuple2(
+			424,
+			_Utils_Tuple2('Internecine', 'Deadly to both sides')),
+			_Utils_Tuple2(
+			425,
+			_Utils_Tuple2('Interpolate', 'To insert; change by adding new words or material')),
+			_Utils_Tuple2(
+			426,
+			_Utils_Tuple2('Interregnum', 'Interval between reigns; gap in continuity')),
+			_Utils_Tuple2(
+			427,
+			_Utils_Tuple2('Intimate', 'Marked by close acquaintance')),
+			_Utils_Tuple2(
+			428,
+			_Utils_Tuple2('Intractable', 'Not easily managed')),
+			_Utils_Tuple2(
+			429,
+			_Utils_Tuple2('Intransigence', 'Stubbornness; refusal to compromise')),
+			_Utils_Tuple2(
+			430,
+			_Utils_Tuple2('Introspective', 'Contemplating one\'s own thoughts and feelings')),
+			_Utils_Tuple2(
+			431,
+			_Utils_Tuple2('Inundate', 'To cover with water; overwhelm')),
+			_Utils_Tuple2(
+			432,
+			_Utils_Tuple2('Inured', 'Hardened; accustomed; used to')),
+			_Utils_Tuple2(
+			433,
+			_Utils_Tuple2('Invective', 'Verbal abuse')),
+			_Utils_Tuple2(
+			434,
+			_Utils_Tuple2('Inveigh', 'To disapprove; protest vehemently')),
+			_Utils_Tuple2(
+			435,
+			_Utils_Tuple2('Inveigle', 'To win over by flattery or coaxing')),
+			_Utils_Tuple2(
+			436,
+			_Utils_Tuple2('Inveterate', 'Confirmed; long-standing; deeply rooted')),
+			_Utils_Tuple2(
+			437,
+			_Utils_Tuple2('Invidious', 'Likely to provike ill will; offensive')),
+			_Utils_Tuple2(
+			438,
+			_Utils_Tuple2('Irascible', 'Easily angered')),
+			_Utils_Tuple2(
+			439,
+			_Utils_Tuple2('Irresolute', 'Unsure of how to act; weak')),
+			_Utils_Tuple2(
+			440,
+			_Utils_Tuple2('Itinerant', 'Wandering from place to place; unsettled')),
+			_Utils_Tuple2(
+			441,
+			_Utils_Tuple2('Itinerary', 'Route of a traveler\'s journey')),
+			_Utils_Tuple2(
+			442,
+			_Utils_Tuple2('Jaundiced', 'Having a yellowish discoloration of the skin; affected by envy, resentment, or hostility')),
+			_Utils_Tuple2(
+			443,
+			_Utils_Tuple2('Jibe', 'To be in agreement')),
+			_Utils_Tuple2(
+			444,
+			_Utils_Tuple2('Jocose', 'Fond of joking; jocular; playful')),
+			_Utils_Tuple2(
+			445,
+			_Utils_Tuple2('Juggernaut', 'Huge force destorying everything in its path')),
+			_Utils_Tuple2(
+			446,
+			_Utils_Tuple2('Junta', 'Group of people united in political intrigue')),
+			_Utils_Tuple2(
+			447,
+			_Utils_Tuple2('Juxtapose ', 'Place side by side')),
+			_Utils_Tuple2(
+			448,
+			_Utils_Tuple2('Kudos', 'Fame; glory; honor')),
+			_Utils_Tuple2(
+			449,
+			_Utils_Tuple2('Labile', 'Likely to change')),
+			_Utils_Tuple2(
+			450,
+			_Utils_Tuple2('Laconic', 'Using few words')),
+			_Utils_Tuple2(
+			451,
+			_Utils_Tuple2('Lambaste', 'To thrash verbally or physically')),
+			_Utils_Tuple2(
+			452,
+			_Utils_Tuple2('Lascivious', 'Lustful')),
+			_Utils_Tuple2(
+			453,
+			_Utils_Tuple2('Lassitude', 'Lethargy; sluggishness')),
+			_Utils_Tuple2(
+			454,
+			_Utils_Tuple2('Latent', 'Present but hidden; potential')),
+			_Utils_Tuple2(
+			455,
+			_Utils_Tuple2('Laud', 'To praise')),
+			_Utils_Tuple2(
+			456,
+			_Utils_Tuple2('Lethargic', 'Inactive')),
+			_Utils_Tuple2(
+			457,
+			_Utils_Tuple2('Levee', 'An embankment that prevents a river from overflowing')),
+			_Utils_Tuple2(
+			458,
+			_Utils_Tuple2('Levity', 'Light manner or attitude')),
+			_Utils_Tuple2(
+			459,
+			_Utils_Tuple2('Liberal', 'Tolerant; broad-minded; generous; lavish')),
+			_Utils_Tuple2(
+			460,
+			_Utils_Tuple2('Libertine', 'One without moral restraint')),
+			_Utils_Tuple2(
+			461,
+			_Utils_Tuple2('Libido', 'Sexual desire')),
+			_Utils_Tuple2(
+			462,
+			_Utils_Tuple2('Lilliputian', 'Extremely small')),
+			_Utils_Tuple2(
+			463,
+			_Utils_Tuple2('Limn', 'To draw; describe')),
+			_Utils_Tuple2(
+			464,
+			_Utils_Tuple2('Limpid', 'Clear; transparent')),
+			_Utils_Tuple2(
+			465,
+			_Utils_Tuple2('Lingusitic', 'Pertaining to language')),
+			_Utils_Tuple2(
+			466,
+			_Utils_Tuple2('Litany', 'Lengthy recitation; repetitive chant')),
+			_Utils_Tuple2(
+			467,
+			_Utils_Tuple2('Literati', 'Scholarly or learned persons')),
+			_Utils_Tuple2(
+			468,
+			_Utils_Tuple2('Litigation', 'Legal Proceedings')),
+			_Utils_Tuple2(
+			469,
+			_Utils_Tuple2('Log', 'Record of a voyage; record of daily activities')),
+			_Utils_Tuple2(
+			470,
+			_Utils_Tuple2('Loquacious', 'Talkative')),
+			_Utils_Tuple2(
+			471,
+			_Utils_Tuple2('Lucid', 'Bright; clear; intelligible')),
+			_Utils_Tuple2(
+			472,
+			_Utils_Tuple2('Lucre', 'Money or ptofits')),
+			_Utils_Tuple2(
+			473,
+			_Utils_Tuple2('Luminous', 'Bright; brilliant; glowing')),
+			_Utils_Tuple2(
+			474,
+			_Utils_Tuple2('Lustrous', 'Shining')),
+			_Utils_Tuple2(
+			475,
+			_Utils_Tuple2('Machiavellian', 'Crafty; double-dealing')),
+			_Utils_Tuple2(
+			476,
+			_Utils_Tuple2('Machinations', 'Plots or schemes')),
+			_Utils_Tuple2(
+			477,
+			_Utils_Tuple2('Maelstrom', 'Whirlpool; turmoil')),
+			_Utils_Tuple2(
+			478,
+			_Utils_Tuple2('Magnanimity', 'Generosity; nobility')),
+			_Utils_Tuple2(
+			479,
+			_Utils_Tuple2('Malign', 'To speak evil of')),
+			_Utils_Tuple2(
+			480,
+			_Utils_Tuple2('Malinger', 'To feign illness to escape duty')),
+			_Utils_Tuple2(
+			481,
+			_Utils_Tuple2('Malleable', 'Capable of being shaped by pounding; impressionable')),
+			_Utils_Tuple2(
+			482,
+			_Utils_Tuple2('Maverick', 'Dissenter')),
+			_Utils_Tuple2(
+			483,
+			_Utils_Tuple2('Megalomania', 'Delusions of power or importance')),
+			_Utils_Tuple2(
+			484,
+			_Utils_Tuple2('Menagerie', 'A variety of animals kept together')),
+			_Utils_Tuple2(
+			485,
+			_Utils_Tuple2('Mendacious', 'Dishonest')),
+			_Utils_Tuple2(
+			486,
+			_Utils_Tuple2('Mendicant', 'Beggar')),
+			_Utils_Tuple2(
+			487,
+			_Utils_Tuple2('Meretricious', 'Gaudy; plausible but false; specious')),
+			_Utils_Tuple2(
+			488,
+			_Utils_Tuple2('Mesmerize', 'To hypnotize')),
+			_Utils_Tuple2(
+			489,
+			_Utils_Tuple2('Metamorphosis', 'Change; transform')),
+			_Utils_Tuple2(
+			490,
+			_Utils_Tuple2('Metaphysics', 'Branch of philosophy that investigates the ultimate nature of reality')),
+			_Utils_Tuple2(
+			491,
+			_Utils_Tuple2('Meteoroligical', 'Concerned with the weather')),
+			_Utils_Tuple2(
+			492,
+			_Utils_Tuple2('Meticulous', 'Very careful; fastidious')),
+			_Utils_Tuple2(
+			493,
+			_Utils_Tuple2('Mettle', 'Courage; endurance')),
+			_Utils_Tuple2(
+			494,
+			_Utils_Tuple2('Mettlesome', 'Full of courage and fortitude; spirited')),
+			_Utils_Tuple2(
+			495,
+			_Utils_Tuple2('Microcosm', 'A small system having analogies to a larger system; small world')),
+			_Utils_Tuple2(
+			496,
+			_Utils_Tuple2('Militate', 'Work against')),
+			_Utils_Tuple2(
+			497,
+			_Utils_Tuple2('Minatory', 'Threatening; menacing')),
+			_Utils_Tuple2(
+			498,
+			_Utils_Tuple2('Minuscule', 'Very small')),
+			_Utils_Tuple2(
+			499,
+			_Utils_Tuple2('Minutia', 'Petty details')),
+			_Utils_Tuple2(
+			500,
+			_Utils_Tuple2('Misanthrope', 'One who hates humanity')),
+			_Utils_Tuple2(
+			501,
+			_Utils_Tuple2('Miscellany', 'Mixture of writings on various subjects')),
+			_Utils_Tuple2(
+			502,
+			_Utils_Tuple2('Miscreant', 'Villain; criminal')),
+			_Utils_Tuple2(
+			503,
+			_Utils_Tuple2('Misogynist', 'One who hates women')),
+			_Utils_Tuple2(
+			504,
+			_Utils_Tuple2('Mitigate', 'To cause to become less harsh, sever or painful; alleviate')),
+			_Utils_Tuple2(
+			505,
+			_Utils_Tuple2('Mnemonic', 'Related to memory; assisting memory')),
+			_Utils_Tuple2(
+			506,
+			_Utils_Tuple2('Modicum', 'Limited quantity')),
+			_Utils_Tuple2(
+			507,
+			_Utils_Tuple2('Mollify', 'To smooth')),
+			_Utils_Tuple2(
+			508,
+			_Utils_Tuple2('Monolithic', 'Solid and uniform; constituting a single, unified whole')),
+			_Utils_Tuple2(
+			509,
+			_Utils_Tuple2('Morose', 'Ill-humored; sullen')),
+			_Utils_Tuple2(
+			510,
+			_Utils_Tuple2('Motley', 'Many colored; made up of many parts')),
+			_Utils_Tuple2(
+			511,
+			_Utils_Tuple2('Multifarious', 'Diverse')),
+			_Utils_Tuple2(
+			512,
+			_Utils_Tuple2('Mundane', 'Worldly as opposed to spiritual; concerned with the ordinary')),
+			_Utils_Tuple2(
+			513,
+			_Utils_Tuple2('Necromancy', 'Black magic')),
+			_Utils_Tuple2(
+			514,
+			_Utils_Tuple2('Negate', 'To cancel out; nullify')),
+			_Utils_Tuple2(
+			515,
+			_Utils_Tuple2('Neologism', 'New word or expression')),
+			_Utils_Tuple2(
+			516,
+			_Utils_Tuple2('Neophyte', 'Novice; beginner')),
+			_Utils_Tuple2(
+			517,
+			_Utils_Tuple2('Nexus', 'A means of connection; a connected group or series; a center')),
+			_Utils_Tuple2(
+			518,
+			_Utils_Tuple2('Nonplussed', 'Bewildered')),
+			_Utils_Tuple2(
+			519,
+			_Utils_Tuple2('Nostalgia', 'Sentimental longing for a past time')),
+			_Utils_Tuple2(
+			520,
+			_Utils_Tuple2('Nostrum', 'Medicine or remedy of doubtful effectiveness; supposed cure')),
+			_Utils_Tuple2(
+			521,
+			_Utils_Tuple2('Nugatory', 'Trifling; invalid')),
+			_Utils_Tuple2(
+			522,
+			_Utils_Tuple2('Obdurate', 'Stubborn')),
+			_Utils_Tuple2(
+			523,
+			_Utils_Tuple2('Obsequious', 'Overly submissive')),
+			_Utils_Tuple2(
+			524,
+			_Utils_Tuple2('Obsequy', 'Funeral ceremony (often used in the plural, obsequies)')),
+			_Utils_Tuple2(
+			525,
+			_Utils_Tuple2('Obviate', 'To make unnecessary; to anticipate and prevent')),
+			_Utils_Tuple2(
+			526,
+			_Utils_Tuple2('Occlude', 'To shut; block')),
+			_Utils_Tuple2(
+			527,
+			_Utils_Tuple2('Occult', 'Relating to practices connected with supernatural phenomena')),
+			_Utils_Tuple2(
+			528,
+			_Utils_Tuple2('Odyssey', 'A long, adventrous voyage; a quest')),
+			_Utils_Tuple2(
+			529,
+			_Utils_Tuple2('Officious', 'Too helpful; meddlesome')),
+			_Utils_Tuple2(
+			530,
+			_Utils_Tuple2('Olfactory', 'Concerning the sense of smell')),
+			_Utils_Tuple2(
+			531,
+			_Utils_Tuple2('Oligarchy', 'From of government in which power belongs to only a few leaders')),
+			_Utils_Tuple2(
+			532,
+			_Utils_Tuple2('Onerous', 'Burdensome')),
+			_Utils_Tuple2(
+			533,
+			_Utils_Tuple2('Onomatopoeia', 'Formation or use of words that imitate sounds of the actions they refer to')),
+			_Utils_Tuple2(
+			534,
+			_Utils_Tuple2('Opprobrium', 'Disgrace; contempt')),
+			_Utils_Tuple2(
+			535,
+			_Utils_Tuple2('Ornithologist', 'Scientist who studies birds')),
+			_Utils_Tuple2(
+			536,
+			_Utils_Tuple2('Oscillate', 'To move back and forth')),
+			_Utils_Tuple2(
+			537,
+			_Utils_Tuple2('Ostentatious', 'Showy; trying to attract attention; pretentious')),
+			_Utils_Tuple2(
+			538,
+			_Utils_Tuple2('Overweening', 'Presumptuous; arrogant; overbearing')),
+			_Utils_Tuple2(
+			539,
+			_Utils_Tuple2('Paean', 'Song of joy or triumph; a fervent expression of joy')),
+			_Utils_Tuple2(
+			540,
+			_Utils_Tuple2('Paleontology', 'Study of past geological eras through fossil remains')),
+			_Utils_Tuple2(
+			541,
+			_Utils_Tuple2('Pallid', 'Lacking color or liveliness')),
+			_Utils_Tuple2(
+			542,
+			_Utils_Tuple2('Panegyric', 'Elaborate praise; formal hymn of praise')),
+			_Utils_Tuple2(
+			543,
+			_Utils_Tuple2('Paragon', 'Model of excellence or perfection')),
+			_Utils_Tuple2(
+			544,
+			_Utils_Tuple2('Partisan', 'One-sided; committed to a party, group, or cause; prejudiced')),
+			_Utils_Tuple2(
+			545,
+			_Utils_Tuple2('Pathological', 'Departing from normal condition')),
+			_Utils_Tuple2(
+			546,
+			_Utils_Tuple2('Patois', 'A regional dialect; nonstandard speech; jargon')),
+			_Utils_Tuple2(
+			547,
+			_Utils_Tuple2('Paucity', 'Scarcity')),
+			_Utils_Tuple2(
+			548,
+			_Utils_Tuple2('Pedantic', 'Showing off learning')),
+			_Utils_Tuple2(
+			549,
+			_Utils_Tuple2('Pellucid', 'Transparent; translucent; easily understood')),
+			_Utils_Tuple2(
+			550,
+			_Utils_Tuple2('Penchant', 'Inclination')),
+			_Utils_Tuple2(
+			551,
+			_Utils_Tuple2('Penury', 'Extreme poverty')),
+			_Utils_Tuple2(
+			552,
+			_Utils_Tuple2('Peregrination', 'A wandering from place to place')),
+			_Utils_Tuple2(
+			553,
+			_Utils_Tuple2('Peremptory', 'Imperative; leaving no choice')),
+			_Utils_Tuple2(
+			554,
+			_Utils_Tuple2('Perennial', 'Present throughout the years; persistent')),
+			_Utils_Tuple2(
+			555,
+			_Utils_Tuple2('Perfidious', 'Faithless; disloyal; untrustworthy')),
+			_Utils_Tuple2(
+			556,
+			_Utils_Tuple2('Perfunctory', 'Superficial; not thorough; performed really as a duty')),
+			_Utils_Tuple2(
+			557,
+			_Utils_Tuple2('Perigee', 'Point in an orbit that is closest to the Earth')),
+			_Utils_Tuple2(
+			558,
+			_Utils_Tuple2('Permeable', 'Penetrable')),
+			_Utils_Tuple2(
+			559,
+			_Utils_Tuple2('Perturb', 'To disturb greatly; make uneasy or anxious; cause a body to deviate from its regular orbit')),
+			_Utils_Tuple2(
+			560,
+			_Utils_Tuple2('Pervasive', 'Spread throughout every part')),
+			_Utils_Tuple2(
+			561,
+			_Utils_Tuple2('Petulant', 'Rude; peevish')),
+			_Utils_Tuple2(
+			562,
+			_Utils_Tuple2('Phlegmatic', 'Calm in temperment; sluggish')),
+			_Utils_Tuple2(
+			563,
+			_Utils_Tuple2('Phoenix', 'Mythical, immortal bird that lives for 500 years, burns itself to death, and rises from its ashes; anything that is restored after suffering great destruction')),
+			_Utils_Tuple2(
+			564,
+			_Utils_Tuple2('Physiognomy', 'Facial features')),
+			_Utils_Tuple2(
+			565,
+			_Utils_Tuple2('Piety', 'Devoutness')),
+			_Utils_Tuple2(
+			566,
+			_Utils_Tuple2('Piquant', 'Appealingly stimulating; pleasantly pungent; attractive')),
+			_Utils_Tuple2(
+			567,
+			_Utils_Tuple2('Pique', 'Fleeting feeling of jurt pride')),
+			_Utils_Tuple2(
+			568,
+			_Utils_Tuple2('Placate', 'To lessen another\'s anger; to pacify')),
+			_Utils_Tuple2(
+			569,
+			_Utils_Tuple2('Placid', 'Calm')),
+			_Utils_Tuple2(
+			570,
+			_Utils_Tuple2('Plaintive', 'Melancholy; mournful')),
+			_Utils_Tuple2(
+			571,
+			_Utils_Tuple2('Plasticity', 'Condition of being able to be shaped or formed; pliability')),
+			_Utils_Tuple2(
+			572,
+			_Utils_Tuple2('Platitude', 'Stal, overused expression')),
+			_Utils_Tuple2(
+			573,
+			_Utils_Tuple2('Platonic', 'Spiritual; without sensual desire; theoretical')),
+			_Utils_Tuple2(
+			574,
+			_Utils_Tuple2('Plethora', 'Excess; overabundance')),
+			_Utils_Tuple2(
+			575,
+			_Utils_Tuple2('Plumb', 'To determine the depth; to examine deeply')),
+			_Utils_Tuple2(
+			576,
+			_Utils_Tuple2('Plummet', 'To fall; plunge')),
+			_Utils_Tuple2(
+			577,
+			_Utils_Tuple2('Plutocracy', 'Society ruled by the wealthy')),
+			_Utils_Tuple2(
+			578,
+			_Utils_Tuple2('Porous', 'Full of holes; permeable to liquids')),
+			_Utils_Tuple2(
+			579,
+			_Utils_Tuple2('Poseur', 'Person who affects an attitude or identity to impress others')),
+			_Utils_Tuple2(
+			580,
+			_Utils_Tuple2('Pragmatic', 'Practical')),
+			_Utils_Tuple2(
+			581,
+			_Utils_Tuple2('Prate', 'To talk idly; chatter')),
+			_Utils_Tuple2(
+			582,
+			_Utils_Tuple2('Prattle', 'Meaningless, foolish talk')),
+			_Utils_Tuple2(
+			583,
+			_Utils_Tuple2('Preamble', 'Preliminary statement')),
+			_Utils_Tuple2(
+			584,
+			_Utils_Tuple2('Precarious', 'Uncertain')),
+			_Utils_Tuple2(
+			585,
+			_Utils_Tuple2('Precept', 'Principle; law')),
+			_Utils_Tuple2(
+			586,
+			_Utils_Tuple2('Precipitate', 'To cause to happen; throw down from a height OR rash; hasty; sudden')),
+			_Utils_Tuple2(
+			587,
+			_Utils_Tuple2('Place', 'Holder')),
+			_Utils_Tuple2(
+			588,
+			_Utils_Tuple2('Precursor', 'Forerunner; predecessor')),
+			_Utils_Tuple2(
+			589,
+			_Utils_Tuple2('Preempt', 'To supersede; appropriate for oneself')),
+			_Utils_Tuple2(
+			590,
+			_Utils_Tuple2('Prehensile', 'Capable of grasping')),
+			_Utils_Tuple2(
+			591,
+			_Utils_Tuple2('Premonition', 'Forewarning; presentiment')),
+			_Utils_Tuple2(
+			592,
+			_Utils_Tuple2('Presage', 'To foretell; indicate in advance')),
+			_Utils_Tuple2(
+			593,
+			_Utils_Tuple2('Presumptuous', 'Rude; improperly bold; readiness to presume')),
+			_Utils_Tuple2(
+			594,
+			_Utils_Tuple2('Preternatural', 'Beyond the normal course of nature; supernatural')),
+			_Utils_Tuple2(
+			595,
+			_Utils_Tuple2('Prevaricate', 'To quibble; evade the truth')),
+			_Utils_Tuple2(
+			596,
+			_Utils_Tuple2('Primoridal', 'Original; existing from the beginning')),
+			_Utils_Tuple2(
+			597,
+			_Utils_Tuple2('Pristine', 'Untouched; uncorrupted')),
+			_Utils_Tuple2(
+			598,
+			_Utils_Tuple2('Probity', 'Honesty; high-mindedness')),
+			_Utils_Tuple2(
+			599,
+			_Utils_Tuple2('Problematic', 'Posing a problem; doubtful; unsettled')),
+			_Utils_Tuple2(
+			600,
+			_Utils_Tuple2('Prodigal', 'Wasteful; extravagant; lavish')),
+			_Utils_Tuple2(
+			601,
+			_Utils_Tuple2('Profound', 'Deep; not superficial')),
+			_Utils_Tuple2(
+			602,
+			_Utils_Tuple2('Prohibitive', 'So high as to prevent the purchase or use of; preventing; forbidding')),
+			_Utils_Tuple2(
+			603,
+			_Utils_Tuple2('Proliferate', 'To increase rapidly')),
+			_Utils_Tuple2(
+			604,
+			_Utils_Tuple2('Propensity', 'Inclination; tendency')),
+			_Utils_Tuple2(
+			605,
+			_Utils_Tuple2('Propitiate', 'To win over; appease')),
+			_Utils_Tuple2(
+			606,
+			_Utils_Tuple2('Propriety', 'Correct conduct; fitness')),
+			_Utils_Tuple2(
+			607,
+			_Utils_Tuple2('Proscribe', 'To condemn; forbid; outlaw')),
+			_Utils_Tuple2(
+			608,
+			_Utils_Tuple2('Provident', 'Providing for future needs; frugal')),
+			_Utils_Tuple2(
+			609,
+			_Utils_Tuple2('Puissant', 'Powerful')),
+			_Utils_Tuple2(
+			610,
+			_Utils_Tuple2('Punctilious', 'Careful in observing rules of behavior or ceremony')),
+			_Utils_Tuple2(
+			611,
+			_Utils_Tuple2('Pungent', 'Strong or sharp in smell or taste; penetrating; caustic; to the point')),
+			_Utils_Tuple2(
+			612,
+			_Utils_Tuple2('Purport', 'To profess; suppose; claim')),
+			_Utils_Tuple2(
+			613,
+			_Utils_Tuple2('Pusillanimous', 'Cowardly')),
+			_Utils_Tuple2(
+			614,
+			_Utils_Tuple2('Quagmire', 'Marsh; difficult situation')),
+			_Utils_Tuple2(
+			615,
+			_Utils_Tuple2('Quail', 'To cower; lose heart')),
+			_Utils_Tuple2(
+			616,
+			_Utils_Tuple2('Qualified', 'Limited; restricted')),
+			_Utils_Tuple2(
+			617,
+			_Utils_Tuple2('Qualm', 'Sudden feeling of faintness or nausea; uneasy feeling about the rightness of actions')),
+			_Utils_Tuple2(
+			618,
+			_Utils_Tuple2('Query', 'To question')),
+			_Utils_Tuple2(
+			619,
+			_Utils_Tuple2('Quibble', 'To argue over insignificant and irrelevant details')),
+			_Utils_Tuple2(
+			620,
+			_Utils_Tuple2('Quiescent', 'Inactive; still')),
+			_Utils_Tuple2(
+			621,
+			_Utils_Tuple2('Quorum', 'Number of members necessary to conduct a meeting')),
+			_Utils_Tuple2(
+			622,
+			_Utils_Tuple2('Raconteur', 'Witty, skillful storyteller')),
+			_Utils_Tuple2(
+			623,
+			_Utils_Tuple2('Rail', 'To scold with bitter or abusive language')),
+			_Utils_Tuple2(
+			624,
+			_Utils_Tuple2('Raiment', 'Clothing')),
+			_Utils_Tuple2(
+			625,
+			_Utils_Tuple2('Ramification', 'Implication; outgrowth; consequence')),
+			_Utils_Tuple2(
+			626,
+			_Utils_Tuple2('Rarefied', 'Refined')),
+			_Utils_Tuple2(
+			627,
+			_Utils_Tuple2('Rationale', 'Fundamental reason')),
+			_Utils_Tuple2(
+			628,
+			_Utils_Tuple2('Rebus', 'Puzzle in which pictures or symbols represent words')),
+			_Utils_Tuple2(
+			629,
+			_Utils_Tuple2('Recalcitrant', 'Resisting authority or control')),
+			_Utils_Tuple2(
+			630,
+			_Utils_Tuple2('Recant', 'To retract a statement or opinion')),
+			_Utils_Tuple2(
+			631,
+			_Utils_Tuple2('Recluse', 'A person who lives in seclusion and often in solitude')),
+			_Utils_Tuple2(
+			632,
+			_Utils_Tuple2('Recondite', 'Abstruse; profound')),
+			_Utils_Tuple2(
+			633,
+			_Utils_Tuple2('Redoubtable', 'Formidable; arousing fear; worthy of respect')),
+			_Utils_Tuple2(
+			634,
+			_Utils_Tuple2('Refractory', 'Stubborn; unmanageable; resisting ordinary methods of treatment')),
+			_Utils_Tuple2(
+			635,
+			_Utils_Tuple2('Refulgent', 'Brightly shining; resplendent')),
+			_Utils_Tuple2(
+			636,
+			_Utils_Tuple2('Refute', 'To contradict; disprove')),
+			_Utils_Tuple2(
+			637,
+			_Utils_Tuple2('Regale', 'To entertain')),
+			_Utils_Tuple2(
+			638,
+			_Utils_Tuple2('Relegate', 'To consign to an inferior position')),
+			_Utils_Tuple2(
+			639,
+			_Utils_Tuple2('Remonstrate', 'To object or protest')),
+			_Utils_Tuple2(
+			640,
+			_Utils_Tuple2('Renege', 'To go back on one\'s word')),
+			_Utils_Tuple2(
+			641,
+			_Utils_Tuple2('Reparation', 'Amends; compensation')),
+			_Utils_Tuple2(
+			642,
+			_Utils_Tuple2('Repine', 'Fret; complain')),
+			_Utils_Tuple2(
+			643,
+			_Utils_Tuple2('Reprise', 'Repetition, especially of a piece of music')),
+			_Utils_Tuple2(
+			644,
+			_Utils_Tuple2('Reproach', 'To find fault with; blame')),
+			_Utils_Tuple2(
+			645,
+			_Utils_Tuple2('Reprobate', 'Morally unprincipled person')),
+			_Utils_Tuple2(
+			646,
+			_Utils_Tuple2('Repudiate', 'To reject as having no authority')),
+			_Utils_Tuple2(
+			647,
+			_Utils_Tuple2('Rescind', 'To cancel')),
+			_Utils_Tuple2(
+			648,
+			_Utils_Tuple2('Resolution', 'Determination; resolve')),
+			_Utils_Tuple2(
+			649,
+			_Utils_Tuple2('Resolve', 'Determination; firmness of purpse')),
+			_Utils_Tuple2(
+			650,
+			_Utils_Tuple2('Reticent', 'Not speaking freely; reserved; reluctant')),
+			_Utils_Tuple2(
+			651,
+			_Utils_Tuple2('Reverent', 'Expressing deep respect; worshipful')),
+			_Utils_Tuple2(
+			652,
+			_Utils_Tuple2('Riposte', 'A retaliatory action or retort')),
+			_Utils_Tuple2(
+			653,
+			_Utils_Tuple2('Rococo', 'Excessively ornate; highly decorated; style of architecture in 18th-century Europe')),
+			_Utils_Tuple2(
+			654,
+			_Utils_Tuple2('Rubric', 'Tile or heading; category; established mode of procedure or conduct; protocol')),
+			_Utils_Tuple2(
+			655,
+			_Utils_Tuple2('Rue', 'To regret')),
+			_Utils_Tuple2(
+			656,
+			_Utils_Tuple2('Ruse', 'Trick; crafty stratagem; subterfuge')),
+			_Utils_Tuple2(
+			657,
+			_Utils_Tuple2('Sage', 'Wise')),
+			_Utils_Tuple2(
+			658,
+			_Utils_Tuple2('Salacious', 'Lascivious; lustful')),
+			_Utils_Tuple2(
+			659,
+			_Utils_Tuple2('Salubrious', 'Healthful')),
+			_Utils_Tuple2(
+			660,
+			_Utils_Tuple2('Salutary', 'Expecting improvement; favorable to health')),
+			_Utils_Tuple2(
+			661,
+			_Utils_Tuple2('Sanction', 'To approve; ratify; permit')),
+			_Utils_Tuple2(
+			662,
+			_Utils_Tuple2('Sardonic', 'Cynical; scornfully mocking')),
+			_Utils_Tuple2(
+			663,
+			_Utils_Tuple2('Sartorial', 'Pertaining to tailors')),
+			_Utils_Tuple2(
+			664,
+			_Utils_Tuple2('Satiate', 'To satisfy')),
+			_Utils_Tuple2(
+			665,
+			_Utils_Tuple2('Saturate', 'To soak throughly; imbue throughout')),
+			_Utils_Tuple2(
+			666,
+			_Utils_Tuple2('Saturnine', 'Gloomy')),
+			_Utils_Tuple2(
+			667,
+			_Utils_Tuple2('Satyr', 'A creature that is half-man, half-beast with the horns and legs of a goat; it is a follower of Dionysos; a lecher')),
+			_Utils_Tuple2(
+			668,
+			_Utils_Tuple2('Savor', 'To enjoy; have a distinctive flavor or smell')),
+			_Utils_Tuple2(
+			669,
+			_Utils_Tuple2('Schematic', 'Relating to or in the form of an outline or diagram')),
+			_Utils_Tuple2(
+			670,
+			_Utils_Tuple2('Secrete', 'Produce and release substance into organism')),
+			_Utils_Tuple2(
+			671,
+			_Utils_Tuple2('Sedition', 'Behavior prompting rebellion')),
+			_Utils_Tuple2(
+			672,
+			_Utils_Tuple2('Sedulous', 'Diligent')),
+			_Utils_Tuple2(
+			673,
+			_Utils_Tuple2('Seismic', 'Relating to earthquakes; earthshaking')),
+			_Utils_Tuple2(
+			674,
+			_Utils_Tuple2('Sensual', 'Relating to the senses; gratifying the physical senses, especially sexual appetites')),
+			_Utils_Tuple2(
+			675,
+			_Utils_Tuple2('Sensuous', 'Relating to the senses; operating through the senses')),
+			_Utils_Tuple2(
+			676,
+			_Utils_Tuple2('Sentient', 'Aware; concious; able to perceive')),
+			_Utils_Tuple2(
+			677,
+			_Utils_Tuple2('Servile', 'Submissive; obedient')),
+			_Utils_Tuple2(
+			678,
+			_Utils_Tuple2('Sextant', 'Navigation tool that determines latitude and longitude')),
+			_Utils_Tuple2(
+			679,
+			_Utils_Tuple2('Shard', 'A piece of broken glass or pottery')),
+			_Utils_Tuple2(
+			680,
+			_Utils_Tuple2('Sidereal', 'Relating to the stars')),
+			_Utils_Tuple2(
+			681,
+			_Utils_Tuple2('Simian', 'Apelike; relating to apes')),
+			_Utils_Tuple2(
+			682,
+			_Utils_Tuple2('Simile', 'Comparison of one thing with abother using \"like\" or \"as\"')),
+			_Utils_Tuple2(
+			683,
+			_Utils_Tuple2('Sinecure', 'Well-paying job or office that requires little or no work')),
+			_Utils_Tuple2(
+			684,
+			_Utils_Tuple2('Singular', 'Unique; extraordinary; odd')),
+			_Utils_Tuple2(
+			685,
+			_Utils_Tuple2('Sinuous', 'Winding; intricate; complex')),
+			_Utils_Tuple2(
+			686,
+			_Utils_Tuple2('Skeptic', 'One who doubts')),
+			_Utils_Tuple2(
+			687,
+			_Utils_Tuple2('Sobriety', 'Seriousness')),
+			_Utils_Tuple2(
+			688,
+			_Utils_Tuple2('Sodden', 'Thoroughly soaked; saturated')),
+			_Utils_Tuple2(
+			689,
+			_Utils_Tuple2('Solicitous', 'Concerned; attentive; eager')),
+			_Utils_Tuple2(
+			690,
+			_Utils_Tuple2('Soliloquy', 'Long speech given to oneself')),
+			_Utils_Tuple2(
+			691,
+			_Utils_Tuple2('Solvent', 'Able to meet financial obligations')),
+			_Utils_Tuple2(
+			692,
+			_Utils_Tuple2('Somatic', 'Relating to or affecting the body; corporeal')),
+			_Utils_Tuple2(
+			693,
+			_Utils_Tuple2('Soporific', 'Sleeo producing')),
+			_Utils_Tuple2(
+			694,
+			_Utils_Tuple2('Sordid', 'Filthy; contemptible and corrupt')),
+			_Utils_Tuple2(
+			695,
+			_Utils_Tuple2('Specious', 'Seeming to be logical and sound, but not really so')),
+			_Utils_Tuple2(
+			696,
+			_Utils_Tuple2('Spectrum', 'Band of colors produced when sunlight passes through a prism; a broad range of related ideas or objects')),
+			_Utils_Tuple2(
+			697,
+			_Utils_Tuple2('Spendthrift', 'Person who spends money recklessly')),
+			_Utils_Tuple2(
+			698,
+			_Utils_Tuple2('Sporadic', 'Irregular')),
+			_Utils_Tuple2(
+			699,
+			_Utils_Tuple2('Squalor', 'Filthy, wretched condition')),
+			_Utils_Tuple2(
+			700,
+			_Utils_Tuple2('Staccato', 'Marked by abrupt, clear-cut sounds')),
+			_Utils_Tuple2(
+			701,
+			_Utils_Tuple2('Stanch', 'To stop or check the flow of')),
+			_Utils_Tuple2(
+			702,
+			_Utils_Tuple2('Stentorian', 'Extremely loud')),
+			_Utils_Tuple2(
+			703,
+			_Utils_Tuple2('Stigma', 'Mark of disgrace or inferiority')),
+			_Utils_Tuple2(
+			704,
+			_Utils_Tuple2('Stint', 'To be sparing')),
+			_Utils_Tuple2(
+			705,
+			_Utils_Tuple2('Stipulate', 'To specify an essential condition')),
+			_Utils_Tuple2(
+			706,
+			_Utils_Tuple2('Stolid', 'Having or showing little emotion')),
+			_Utils_Tuple2(
+			707,
+			_Utils_Tuple2('Stratified', 'Arranged in layers')),
+			_Utils_Tuple2(
+			708,
+			_Utils_Tuple2('Striated', 'Marked with thin, narrow grooves or channes')),
+			_Utils_Tuple2(
+			709,
+			_Utils_Tuple2('Stricture', 'Something that restrains; negative criticism')),
+			_Utils_Tuple2(
+			710,
+			_Utils_Tuple2('Strident', 'Loud; harsh; unpleasantly noisy')),
+			_Utils_Tuple2(
+			711,
+			_Utils_Tuple2('Strut', 'To swagger; display to impress others')),
+			_Utils_Tuple2(
+			712,
+			_Utils_Tuple2('Stultify', 'To impair or reduce to uselessness')),
+			_Utils_Tuple2(
+			713,
+			_Utils_Tuple2('Stupefy', 'To dull the senses of; stun; astonish')),
+			_Utils_Tuple2(
+			714,
+			_Utils_Tuple2('Stygian', 'Dark and gloomy; hellish')),
+			_Utils_Tuple2(
+			715,
+			_Utils_Tuple2('Subpoena', 'Notice ordering someone to appear in court')),
+			_Utils_Tuple2(
+			716,
+			_Utils_Tuple2('Subside', 'To settle down; grow quiet')),
+			_Utils_Tuple2(
+			717,
+			_Utils_Tuple2('Substantiate', 'To support with proof or evidence')),
+			_Utils_Tuple2(
+			718,
+			_Utils_Tuple2('Substantive', 'Essential; pertaining to the substance')),
+			_Utils_Tuple2(
+			719,
+			_Utils_Tuple2('Subsume', 'To include; incorporate')),
+			_Utils_Tuple2(
+			720,
+			_Utils_Tuple2('Subversive', 'Intended to undermine or overthrow, especially an established government')),
+			_Utils_Tuple2(
+			721,
+			_Utils_Tuple2('Succor', 'Relief; help in time of distress or want')),
+			_Utils_Tuple2(
+			722,
+			_Utils_Tuple2('Suffrage', 'The right to vote')),
+			_Utils_Tuple2(
+			723,
+			_Utils_Tuple2('Sundry', 'Various')),
+			_Utils_Tuple2(
+			724,
+			_Utils_Tuple2('Supersede', 'To replace, especially to displace as inferior or antiquated')),
+			_Utils_Tuple2(
+			725,
+			_Utils_Tuple2('Supine', 'Lying on the back; marked by lethargy')),
+			_Utils_Tuple2(
+			726,
+			_Utils_Tuple2('Supplant', 'To replace; substitute')),
+			_Utils_Tuple2(
+			727,
+			_Utils_Tuple2('Suppliant', 'Beseeching')),
+			_Utils_Tuple2(
+			728,
+			_Utils_Tuple2('Supplicant', 'One who asks humbly and earnestly')),
+			_Utils_Tuple2(
+			729,
+			_Utils_Tuple2('Supposition', 'The act of assuming to be true or real')),
+			_Utils_Tuple2(
+			730,
+			_Utils_Tuple2('Syllogism', 'A form of deductive reasoning that has a major premise, a minor premise, and a conclusion')),
+			_Utils_Tuple2(
+			731,
+			_Utils_Tuple2('Sylvan', 'Related to the woods or forest')),
+			_Utils_Tuple2(
+			732,
+			_Utils_Tuple2('Tacit', 'Silently understood; implied')),
+			_Utils_Tuple2(
+			733,
+			_Utils_Tuple2('Taciturn', 'Habitually untalkative')),
+			_Utils_Tuple2(
+			734,
+			_Utils_Tuple2('Talisman', 'Charm to bring good luck and avert misfortune')),
+			_Utils_Tuple2(
+			735,
+			_Utils_Tuple2('Tangential', 'Peripheral; digressing')),
+			_Utils_Tuple2(
+			736,
+			_Utils_Tuple2('Tautology', 'Unnecessary repetition')),
+			_Utils_Tuple2(
+			737,
+			_Utils_Tuple2('Taxonomy', 'Science of classification; in biology, the process of classifying organisms in categories')),
+			_Utils_Tuple2(
+			738,
+			_Utils_Tuple2('Tenet', 'Belief; doctrine')),
+			_Utils_Tuple2(
+			739,
+			_Utils_Tuple2('Tenuous', 'Weak; insubstantial')),
+			_Utils_Tuple2(
+			740,
+			_Utils_Tuple2('Theocracy', 'Government by priests representing a god')),
+			_Utils_Tuple2(
+			741,
+			_Utils_Tuple2('Thespian', 'An actor or actress')),
+			_Utils_Tuple2(
+			742,
+			_Utils_Tuple2('Timbre', 'The characteristic quality of sound produced by a particular instrument or voice; tone color')),
+			_Utils_Tuple2(
+			743,
+			_Utils_Tuple2('Tirade', 'Long, violent speech; verbal assault')),
+			_Utils_Tuple2(
+			744,
+			_Utils_Tuple2('Toady', 'Flatterer; hanger-on; yes-man')),
+			_Utils_Tuple2(
+			745,
+			_Utils_Tuple2('Tome', 'Book, usually large and academic')),
+			_Utils_Tuple2(
+			746,
+			_Utils_Tuple2('Torpor', 'Lethargy; dormancy; sluggishness')),
+			_Utils_Tuple2(
+			747,
+			_Utils_Tuple2('Torque', 'A turning or twisting force; the moment of a force')),
+			_Utils_Tuple2(
+			748,
+			_Utils_Tuple2('Tortuous', 'Having many twists and turns; highly complex')),
+			_Utils_Tuple2(
+			749,
+			_Utils_Tuple2('Tout', 'To promote or praise energetically')),
+			_Utils_Tuple2(
+			750,
+			_Utils_Tuple2('Tractable', 'Obedient; yielding')),
+			_Utils_Tuple2(
+			751,
+			_Utils_Tuple2('Transgression', 'Act of trespassing or violating a law or rule')),
+			_Utils_Tuple2(
+			752,
+			_Utils_Tuple2('Transient', 'Temporary; short-lived; fleeting')),
+			_Utils_Tuple2(
+			753,
+			_Utils_Tuple2('Translucent', 'Partially transparent')),
+			_Utils_Tuple2(
+			754,
+			_Utils_Tuple2('Travail', 'Work, especially arduous work; tribulation; anguish')),
+			_Utils_Tuple2(
+			755,
+			_Utils_Tuple2('Travesty', 'Parody; exaggerated imitation; caricature')),
+			_Utils_Tuple2(
+			756,
+			_Utils_Tuple2('Treatise', 'Article treating a subject systematically and thoroughly')),
+			_Utils_Tuple2(
+			757,
+			_Utils_Tuple2('Tremulous', 'Trembling; quivering; frugal; timid')),
+			_Utils_Tuple2(
+			758,
+			_Utils_Tuple2('Trepidation', 'Fear and anxiety')),
+			_Utils_Tuple2(
+			759,
+			_Utils_Tuple2('Truculence', 'Aggressiveness; ferocity')),
+			_Utils_Tuple2(
+			760,
+			_Utils_Tuple2('Tryst', 'Agreement between lovers to meet; rendezvous')),
+			_Utils_Tuple2(
+			761,
+			_Utils_Tuple2('Tumid', 'Swollen; distended')),
+			_Utils_Tuple2(
+			762,
+			_Utils_Tuple2('Turbid', 'Muddy; opaque; in a state of great confusion')),
+			_Utils_Tuple2(
+			763,
+			_Utils_Tuple2('Turgid', 'Swollen; bloated; pompous')),
+			_Utils_Tuple2(
+			764,
+			_Utils_Tuple2('Tutelary', 'Serving as a guardian or protector')),
+			_Utils_Tuple2(
+			765,
+			_Utils_Tuple2('Uncanny', 'Mysterious; strange')),
+			_Utils_Tuple2(
+			766,
+			_Utils_Tuple2('Undulating', 'Moving in waves')),
+			_Utils_Tuple2(
+			767,
+			_Utils_Tuple2('Unfeigned', 'Not false; not made up; genuine')),
+			_Utils_Tuple2(
+			768,
+			_Utils_Tuple2('Untenable', 'Indefensible')),
+			_Utils_Tuple2(
+			769,
+			_Utils_Tuple2('Untoward', 'Not favorable; troublesome; adverse; unruly')),
+			_Utils_Tuple2(
+			770,
+			_Utils_Tuple2('Usury', 'Practice of lending money at exorbitant rates')),
+			_Utils_Tuple2(
+			771,
+			_Utils_Tuple2('Vacillate', 'To waver; oscillate')),
+			_Utils_Tuple2(
+			772,
+			_Utils_Tuple2('Vacuous', 'Empty; void; lacking intelligence; purposeless')),
+			_Utils_Tuple2(
+			773,
+			_Utils_Tuple2('Valedictory', 'Pertaining to a farewell')),
+			_Utils_Tuple2(
+			774,
+			_Utils_Tuple2('Vapid', 'Tasteless; dull')),
+			_Utils_Tuple2(
+			775,
+			_Utils_Tuple2('Variegated', 'Varied; marked with different colors')),
+			_Utils_Tuple2(
+			776,
+			_Utils_Tuple2('Vaunt', 'To boast; brag')),
+			_Utils_Tuple2(
+			777,
+			_Utils_Tuple2('Venal', 'Bribable; mercenary; corruptible')),
+			_Utils_Tuple2(
+			778,
+			_Utils_Tuple2('Vendetta', 'Prolonged feud marked by bitter hostility')),
+			_Utils_Tuple2(
+			779,
+			_Utils_Tuple2('Venerate', 'To adore; honor; respect')),
+			_Utils_Tuple2(
+			780,
+			_Utils_Tuple2('Veracious', 'Truthful; accurate')),
+			_Utils_Tuple2(
+			781,
+			_Utils_Tuple2('Verbose', 'Wordy')),
+			_Utils_Tuple2(
+			782,
+			_Utils_Tuple2('Vertigo', 'Dizziness')),
+			_Utils_Tuple2(
+			783,
+			_Utils_Tuple2('Vexation', 'Irritation; annoyance; confusion; puzzlement')),
+			_Utils_Tuple2(
+			784,
+			_Utils_Tuple2('Viable', 'Practicable; capable of developing')),
+			_Utils_Tuple2(
+			785,
+			_Utils_Tuple2('Vindictive', 'Spiteful; vengeful; unforgibing')),
+			_Utils_Tuple2(
+			786,
+			_Utils_Tuple2('Virtuoso', 'Someone with masterly skills; expert musician')),
+			_Utils_Tuple2(
+			787,
+			_Utils_Tuple2('Visage', 'Countenance; appearance; aspect')),
+			_Utils_Tuple2(
+			788,
+			_Utils_Tuple2('Viscous', 'Thick; syrupy and sticky')),
+			_Utils_Tuple2(
+			789,
+			_Utils_Tuple2('Vititate', 'To impair the quality of; corrupt morally; make inoperative')),
+			_Utils_Tuple2(
+			790,
+			_Utils_Tuple2('Vituperative', 'Using or containing harsh, abusive censure')),
+			_Utils_Tuple2(
+			791,
+			_Utils_Tuple2('Vivisection', 'dissection, surgery, or painful experiments performed on a living animal for the purpose of scientific research')),
+			_Utils_Tuple2(
+			792,
+			_Utils_Tuple2('Vogue', 'Prevailing fashion or practice')),
+			_Utils_Tuple2(
+			793,
+			_Utils_Tuple2('Volatile', 'Tending to vary frequently; fickle')),
+			_Utils_Tuple2(
+			794,
+			_Utils_Tuple2('Vortex', 'Whirlpool; whirlwind; center of turbulence')),
+			_Utils_Tuple2(
+			795,
+			_Utils_Tuple2('Warranted', 'Justified')),
+			_Utils_Tuple2(
+			796,
+			_Utils_Tuple2('Wary', 'Careful; cautious')),
+			_Utils_Tuple2(
+			797,
+			_Utils_Tuple2('Welter', 'To wallow or roll; toss about; be in turmoil')),
+			_Utils_Tuple2(
+			798,
+			_Utils_Tuple2('Whimsical', 'Fanciful; unpredictable')),
+			_Utils_Tuple2(
+			799,
+			_Utils_Tuple2('Wistful', 'Vaguely longing; sadly thoughtful')),
+			_Utils_Tuple2(
+			800,
+			_Utils_Tuple2('Zealot', 'One who is fanatically devoted to a cause'))
+		]));
+var $author$project$Main$init = function (_v0) {
+	return _Utils_Tuple2(
+		A5(
+			$author$project$Main$Model,
+			$author$project$Data$data,
+			$author$project$Main$WordsList(
+				_Utils_Tuple2(1, 10)),
+			_Utils_Tuple2(1, 10),
+			_Utils_Tuple2(1, 800),
+			$elm$core$Dict$empty),
+		$elm$core$Platform$Cmd$none);
+};
+var $elm$core$Platform$Sub$batch = _Platform_batch;
+var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Main$subscriptions = function (model) {
+	return $elm$core$Platform$Sub$none;
+};
+var $author$project$Main$Quiz = function (a) {
+	return {$: 'Quiz', a: a};
+};
+var $author$project$Main$StartQuiz = function (a) {
+	return {$: 'StartQuiz', a: a};
+};
+var $elm$random$Random$Generate = function (a) {
+	return {$: 'Generate', a: a};
+};
+var $elm$random$Random$Seed = F2(
+	function (a, b) {
+		return {$: 'Seed', a: a, b: b};
+	});
+var $elm$random$Random$next = function (_v0) {
+	var state0 = _v0.a;
+	var incr = _v0.b;
+	return A2($elm$random$Random$Seed, ((state0 * 1664525) + incr) >>> 0, incr);
+};
+var $elm$random$Random$initialSeed = function (x) {
+	var _v0 = $elm$random$Random$next(
+		A2($elm$random$Random$Seed, 0, 1013904223));
+	var state1 = _v0.a;
+	var incr = _v0.b;
+	var state2 = (state1 + x) >>> 0;
+	return $elm$random$Random$next(
+		A2($elm$random$Random$Seed, state2, incr));
+};
+var $elm$time$Time$Name = function (a) {
+	return {$: 'Name', a: a};
+};
+var $elm$time$Time$Offset = function (a) {
+	return {$: 'Offset', a: a};
+};
+var $elm$time$Time$Zone = F2(
+	function (a, b) {
+		return {$: 'Zone', a: a, b: b};
+	});
+var $elm$time$Time$customZone = $elm$time$Time$Zone;
+var $elm$time$Time$Posix = function (a) {
+	return {$: 'Posix', a: a};
+};
+var $elm$time$Time$millisToPosix = $elm$time$Time$Posix;
+var $elm$time$Time$now = _Time_now($elm$time$Time$millisToPosix);
+var $elm$time$Time$posixToMillis = function (_v0) {
+	var millis = _v0.a;
+	return millis;
+};
+var $elm$random$Random$init = A2(
+	$elm$core$Task$andThen,
+	function (time) {
+		return $elm$core$Task$succeed(
+			$elm$random$Random$initialSeed(
+				$elm$time$Time$posixToMillis(time)));
+	},
+	$elm$time$Time$now);
+var $elm$random$Random$step = F2(
+	function (_v0, seed) {
+		var generator = _v0.a;
+		return generator(seed);
+	});
+var $elm$random$Random$onEffects = F3(
+	function (router, commands, seed) {
+		if (!commands.b) {
+			return $elm$core$Task$succeed(seed);
+		} else {
+			var generator = commands.a.a;
+			var rest = commands.b;
+			var _v1 = A2($elm$random$Random$step, generator, seed);
+			var value = _v1.a;
+			var newSeed = _v1.b;
+			return A2(
+				$elm$core$Task$andThen,
+				function (_v2) {
+					return A3($elm$random$Random$onEffects, router, rest, newSeed);
+				},
+				A2($elm$core$Platform$sendToApp, router, value));
+		}
+	});
+var $elm$random$Random$onSelfMsg = F3(
+	function (_v0, _v1, seed) {
+		return $elm$core$Task$succeed(seed);
+	});
+var $elm$random$Random$Generator = function (a) {
+	return {$: 'Generator', a: a};
+};
+var $elm$random$Random$map = F2(
+	function (func, _v0) {
+		var genA = _v0.a;
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v1 = genA(seed0);
+				var a = _v1.a;
+				var seed1 = _v1.b;
+				return _Utils_Tuple2(
+					func(a),
+					seed1);
+			});
+	});
+var $elm$random$Random$cmdMap = F2(
+	function (func, _v0) {
+		var generator = _v0.a;
+		return $elm$random$Random$Generate(
+			A2($elm$random$Random$map, func, generator));
+	});
+_Platform_effectManagers['Random'] = _Platform_createManager($elm$random$Random$init, $elm$random$Random$onEffects, $elm$random$Random$onSelfMsg, $elm$random$Random$cmdMap);
+var $elm$random$Random$command = _Platform_leaf('Random');
+var $elm$random$Random$generate = F2(
+	function (tagger, generator) {
+		return $elm$random$Random$command(
+			$elm$random$Random$Generate(
+				A2($elm$random$Random$map, tagger, generator)));
+	});
+var $elm$random$Random$listHelp = F4(
+	function (revList, n, gen, seed) {
+		listHelp:
+		while (true) {
+			if (n < 1) {
+				return _Utils_Tuple2(revList, seed);
+			} else {
+				var _v0 = gen(seed);
+				var value = _v0.a;
+				var newSeed = _v0.b;
+				var $temp$revList = A2($elm$core$List$cons, value, revList),
+					$temp$n = n - 1,
+					$temp$gen = gen,
+					$temp$seed = newSeed;
+				revList = $temp$revList;
+				n = $temp$n;
+				gen = $temp$gen;
+				seed = $temp$seed;
+				continue listHelp;
+			}
+		}
+	});
+var $elm$random$Random$list = F2(
+	function (n, _v0) {
+		var gen = _v0.a;
+		return $elm$random$Random$Generator(
+			function (seed) {
+				return A4($elm$random$Random$listHelp, _List_Nil, n, gen, seed);
+			});
+	});
+var $elm$core$Bitwise$xor = _Bitwise_xor;
+var $elm$random$Random$peel = function (_v0) {
+	var state = _v0.a;
+	var word = (state ^ (state >>> ((state >>> 28) + 4))) * 277803737;
+	return ((word >>> 22) ^ word) >>> 0;
+};
+var $elm$random$Random$int = F2(
+	function (a, b) {
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v0 = (_Utils_cmp(a, b) < 0) ? _Utils_Tuple2(a, b) : _Utils_Tuple2(b, a);
+				var lo = _v0.a;
+				var hi = _v0.b;
+				var range = (hi - lo) + 1;
+				if (!((range - 1) & range)) {
+					return _Utils_Tuple2(
+						(((range - 1) & $elm$random$Random$peel(seed0)) >>> 0) + lo,
+						$elm$random$Random$next(seed0));
+				} else {
+					var threshhold = (((-range) >>> 0) % range) >>> 0;
+					var accountForBias = function (seed) {
+						accountForBias:
+						while (true) {
+							var x = $elm$random$Random$peel(seed);
+							var seedN = $elm$random$Random$next(seed);
+							if (_Utils_cmp(x, threshhold) < 0) {
+								var $temp$seed = seedN;
+								seed = $temp$seed;
+								continue accountForBias;
+							} else {
+								return _Utils_Tuple2((x % range) + lo, seedN);
+							}
+						}
+					};
+					return accountForBias(seed0);
+				}
+			});
+	});
+var $elm$random$Random$maxInt = 2147483647;
+var $elm$random$Random$minInt = -2147483648;
+var $elm_community$random_extra$Random$List$anyInt = A2($elm$random$Random$int, $elm$random$Random$minInt, $elm$random$Random$maxInt);
+var $elm$random$Random$map3 = F4(
+	function (func, _v0, _v1, _v2) {
+		var genA = _v0.a;
+		var genB = _v1.a;
+		var genC = _v2.a;
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v3 = genA(seed0);
+				var a = _v3.a;
+				var seed1 = _v3.b;
+				var _v4 = genB(seed1);
+				var b = _v4.a;
+				var seed2 = _v4.b;
+				var _v5 = genC(seed2);
+				var c = _v5.a;
+				var seed3 = _v5.b;
+				return _Utils_Tuple2(
+					A3(func, a, b, c),
+					seed3);
+			});
+	});
+var $elm$core$Bitwise$or = _Bitwise_or;
+var $elm$random$Random$independentSeed = $elm$random$Random$Generator(
+	function (seed0) {
+		var makeIndependentSeed = F3(
+			function (state, b, c) {
+				return $elm$random$Random$next(
+					A2($elm$random$Random$Seed, state, (1 | (b ^ c)) >>> 0));
+			});
+		var gen = A2($elm$random$Random$int, 0, 4294967295);
+		return A2(
+			$elm$random$Random$step,
+			A4($elm$random$Random$map3, makeIndependentSeed, gen, gen, gen),
+			seed0);
+	});
+var $elm$core$List$sortBy = _List_sortBy;
+var $elm_community$random_extra$Random$List$shuffle = function (list) {
+	return A2(
+		$elm$random$Random$map,
+		function (independentSeed) {
+			return A2(
+				$elm$core$List$map,
+				$elm$core$Tuple$first,
+				A2(
+					$elm$core$List$sortBy,
+					$elm$core$Tuple$second,
+					A3(
+						$elm$core$List$foldl,
+						F2(
+							function (item, _v0) {
+								var acc = _v0.a;
+								var seed = _v0.b;
+								var _v1 = A2($elm$random$Random$step, $elm_community$random_extra$Random$List$anyInt, seed);
+								var tag = _v1.a;
+								var nextSeed = _v1.b;
+								return _Utils_Tuple2(
+									A2(
+										$elm$core$List$cons,
+										_Utils_Tuple2(item, tag),
+										acc),
+									nextSeed);
+							}),
+						_Utils_Tuple2(_List_Nil, independentSeed),
+						list).a));
+		},
+		$elm$random$Random$independentSeed);
+};
+var $elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2($elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var $elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return $elm$core$List$reverse(
+			A3($elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var $elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _v0 = _Utils_Tuple2(n, list);
+			_v0$1:
+			while (true) {
+				_v0$5:
+				while (true) {
+					if (!_v0.b.b) {
+						return list;
+					} else {
+						if (_v0.b.b.b) {
+							switch (_v0.a) {
+								case 1:
+									break _v0$1;
+								case 2:
+									var _v2 = _v0.b;
+									var x = _v2.a;
+									var _v3 = _v2.b;
+									var y = _v3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_v0.b.b.b.b) {
+										var _v4 = _v0.b;
+										var x = _v4.a;
+										var _v5 = _v4.b;
+										var y = _v5.a;
+										var _v6 = _v5.b;
+										var z = _v6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _v0$5;
+									}
+								default:
+									if (_v0.b.b.b.b && _v0.b.b.b.b.b) {
+										var _v7 = _v0.b;
+										var x = _v7.a;
+										var _v8 = _v7.b;
+										var y = _v8.a;
+										var _v9 = _v8.b;
+										var z = _v9.a;
+										var _v10 = _v9.b;
+										var w = _v10.a;
+										var tl = _v10.b;
+										return (ctr > 1000) ? A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A2($elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A3($elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _v0$5;
+									}
+							}
+						} else {
+							if (_v0.a === 1) {
+								break _v0$1;
+							} else {
+								break _v0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _v1 = _v0.b;
+			var x = _v1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var $elm$core$List$take = F2(
+	function (n, list) {
+		return A3($elm$core$List$takeFast, 0, n, list);
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
-			case 'CreateWordsList':
-				return _Utils_update(
+			case 'RandomizeNewQuiz':
+				var _v1 = model.quizRange;
+				var start = _v1.a;
+				var end = _v1.b;
+				var quantity = (end - start) + 1;
+				return _Utils_Tuple2(
 					model,
-					{
-						mode: $author$project$Main$WordsList(model.wordsListRange)
-					});
+					A2(
+						$elm$random$Random$generate,
+						$author$project$Main$StartQuiz,
+						A2(
+							$elm$random$Random$map,
+							function (list) {
+								return $elm$core$Dict$fromList(
+									A2(
+										$elm$core$List$indexedMap,
+										F2(
+											function (index, item) {
+												return _Utils_Tuple2(index, item);
+											}),
+										list));
+							},
+							A2(
+								$elm$random$Random$list,
+								quantity,
+								A2(
+									$elm$random$Random$map,
+									$elm$core$List$take(4),
+									$elm_community$random_extra$Random$List$shuffle(
+										A2($elm$core$List$range, 0, 799)))))));
+			case 'StartQuiz':
+				var options = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							mode: $author$project$Main$Quiz(model.quizRange),
+							quizOptions: options
+						}),
+					$elm$core$Platform$Cmd$none);
+			case 'CreateWordsList':
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							mode: $author$project$Main$WordsList(model.wordsListRange)
+						}),
+					$elm$core$Platform$Cmd$none);
 			case 'UpdateQuizRangeStart':
 				var start = msg.a;
-				var _v1 = model.quizRange;
-				var end = _v1.b;
-				return _Utils_update(
-					model,
-					{
-						quizRange: _Utils_Tuple2(
-							A2(
-								$elm$core$Maybe$withDefault,
-								0,
-								$elm$core$String$toInt(start)),
-							end)
-					});
+				var _v2 = model.quizRange;
+				var end = _v2.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							quizRange: _Utils_Tuple2(
+								A2(
+									$elm$core$Maybe$withDefault,
+									0,
+									$elm$core$String$toInt(start)),
+								end)
+						}),
+					$elm$core$Platform$Cmd$none);
 			case 'UpdateQuizRangeEnd':
 				var end = msg.a;
-				var _v2 = model.quizRange;
-				var start = _v2.a;
-				return _Utils_update(
-					model,
-					{
-						quizRange: _Utils_Tuple2(
-							start,
-							A2(
-								$elm$core$Maybe$withDefault,
-								0,
-								$elm$core$String$toInt(end)))
-					});
+				var _v3 = model.quizRange;
+				var start = _v3.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							quizRange: _Utils_Tuple2(
+								start,
+								A2(
+									$elm$core$Maybe$withDefault,
+									0,
+									$elm$core$String$toInt(end)))
+						}),
+					$elm$core$Platform$Cmd$none);
 			case 'UpdateWordsListRangeStart':
 				var start = msg.a;
-				var _v3 = model.wordsListRange;
-				var end = _v3.b;
-				return _Utils_update(
-					model,
-					{
-						wordsListRange: _Utils_Tuple2(
-							A2(
-								$elm$core$Maybe$withDefault,
-								0,
-								$elm$core$String$toInt(start)),
-							end)
-					});
-			case 'UpdateWordsListRangeEnd':
-				var end = msg.a;
 				var _v4 = model.wordsListRange;
-				var start = _v4.a;
-				return _Utils_update(
-					model,
-					{
-						wordsListRange: _Utils_Tuple2(
-							start,
-							A2(
-								$elm$core$Maybe$withDefault,
-								0,
-								$elm$core$String$toInt(end)))
-					});
+				var end = _v4.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							wordsListRange: _Utils_Tuple2(
+								A2(
+									$elm$core$Maybe$withDefault,
+									0,
+									$elm$core$String$toInt(start)),
+								end)
+						}),
+					$elm$core$Platform$Cmd$none);
 			default:
-				return model;
+				var end = msg.a;
+				var _v5 = model.wordsListRange;
+				var start = _v5.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							wordsListRange: _Utils_Tuple2(
+								start,
+								A2(
+									$elm$core$Maybe$withDefault,
+									0,
+									$elm$core$String$toInt(end)))
+						}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $author$project$Main$CreateWordsList = {$: 'CreateWordsList'};
+var $author$project$Main$RandomizeNewQuiz = {$: 'RandomizeNewQuiz'};
 var $author$project$Main$UpdateQuizRangeEnd = function (a) {
 	return {$: 'UpdateQuizRangeEnd', a: a};
 };
@@ -13055,9 +13517,44 @@ var $author$project$Main$UpdateWordsListRangeEnd = function (a) {
 var $author$project$Main$UpdateWordsListRangeStart = function (a) {
 	return {$: 'UpdateWordsListRangeStart', a: a};
 };
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
+		}
+	});
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
 var $elm$html$Html$label = _VirtualDom_node('label');
+var $elm$core$Basics$min = F2(
+	function (x, y) {
+		return (_Utils_cmp(x, y) < 0) ? x : y;
+	});
+var $elm$core$List$minimum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$min, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$html$Html$Attributes$scope = $elm$html$Html$Attributes$stringProperty('scope');
 var $elm$html$Html$table = _VirtualDom_node('table');
@@ -13145,7 +13642,8 @@ var $author$project$Main$view = function (model) {
 								$elm$html$Html$button,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$class('btn btn-outline-success')
+										$elm$html$Html$Attributes$class('btn btn-outline-success'),
+										$elm$html$Html$Events$onClick($author$project$Main$RandomizeNewQuiz)
 									]),
 								_List_fromArray(
 									[
@@ -13225,7 +13723,94 @@ var $author$project$Main$view = function (model) {
 					]),
 				function () {
 					var _v0 = model.mode;
-					if (_v0.$ === 'WordsList') {
+					if (_v0.$ === 'Quiz') {
+						var range = _v0.a;
+						var start = $elm$core$String$fromInt(range.a);
+						var end = $elm$core$String$fromInt(range.b);
+						return A2(
+							$elm$core$List$cons,
+							A2(
+								$elm$html$Html$h1,
+								_List_Nil,
+								_List_fromArray(
+									[
+										$elm$html$Html$text('Quiz (' + (start + (' to ' + (end + ')'))))
+									])),
+							A2(
+								$elm$core$List$map,
+								function (index) {
+									var optionIndices = A2(
+										$elm$core$Maybe$withDefault,
+										_List_fromArray(
+											[0, 1, 2, 3]),
+										A2($elm$core$Dict$get, index - 1, model.quizOptions));
+									var minOptionIndex = A2(
+										$elm$core$Maybe$withDefault,
+										0,
+										$elm$core$List$minimum(optionIndices));
+									var correctOptionInIndices = A2(
+										$elm$core$List$any,
+										function (index_) {
+											return _Utils_eq(index_, index);
+										},
+										optionIndices);
+									var options = A2(
+										$elm$core$List$map,
+										function (index_) {
+											var finalIndex = ((!correctOptionInIndices) && _Utils_eq(minOptionIndex, index_)) ? index : index_;
+											return A2(
+												$elm$core$Maybe$withDefault,
+												_Utils_Tuple2('', 'Not found'),
+												A2($elm$core$Dict$get, finalIndex, model.wordMeanings)).b;
+										},
+										optionIndices);
+									var _v1 = A2(
+										$elm$core$Maybe$withDefault,
+										_Utils_Tuple2('Not found', ''),
+										A2($elm$core$Dict$get, index, model.wordMeanings));
+									var word = _v1.a;
+									return A2(
+										$elm$html$Html$div,
+										_List_Nil,
+										_List_fromArray(
+											[
+												A2(
+												$elm$html$Html$h3,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('my-3')
+													]),
+												_List_fromArray(
+													[
+														$elm$html$Html$text(
+														$elm$core$String$fromInt(index) + ('. ' + word))
+													])),
+												A2(
+												$elm$html$Html$div,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('list-group list-group-numbered mb-3')
+													]),
+												A2(
+													$elm$core$List$map,
+													function (option) {
+														return A2(
+															$elm$html$Html$a,
+															_List_fromArray(
+																[
+																	$elm$html$Html$Attributes$href('#'),
+																	$elm$html$Html$Attributes$class('list-group-item list-group-item-action')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text(option)
+																]));
+													},
+													options))
+											]));
+								},
+								A2($elm$core$List$range, range.a, range.b)));
+					} else {
 						var range = _v0.a;
 						var start = $elm$core$String$fromInt(range.a);
 						var end = $elm$core$String$fromInt(range.b);
@@ -13333,13 +13918,11 @@ var $author$project$Main$view = function (model) {
 											A2($elm$core$List$range, range.a, range.b)))
 									]))
 							]);
-					} else {
-						return _List_Nil;
 					}
 				}())
 			]));
 };
-var $author$project$Main$main = $elm$browser$Browser$sandbox(
-	{init: $author$project$Main$init, update: $author$project$Main$update, view: $author$project$Main$view});
+var $author$project$Main$main = $elm$browser$Browser$element(
+	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"StartQuiz":[],"CreateWordsList":[],"UpdateQuizRangeStart":["String.String"],"UpdateQuizRangeEnd":["String.String"],"UpdateWordsListRangeStart":["String.String"],"UpdateWordsListRangeEnd":["String.String"]}},"String.String":{"args":[],"tags":{"String":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"StartQuiz":["Dict.Dict Basics.Int (List.List Basics.Int)"],"CreateWordsList":[],"UpdateQuizRangeStart":["String.String"],"UpdateQuizRangeEnd":["String.String"],"UpdateWordsListRangeStart":["String.String"],"UpdateWordsListRangeEnd":["String.String"],"RandomizeNewQuiz":[]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

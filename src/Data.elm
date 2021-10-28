@@ -3,7 +3,7 @@ module Data exposing (data)
 import Dict exposing (Dict)
 
 
-data : Dict Int (String, String)
+data : Dict Int ( String, String )
 data =
     Dict.fromList
         [ ( 1, ( "Abate", "To decrease; reduce" ) )
@@ -521,7 +521,7 @@ data =
         , ( 513, ( "Necromancy", "Black magic" ) )
         , ( 514, ( "Negate", "To cancel out; nullify" ) )
         , ( 515, ( "Neologism", "New word or expression" ) )
-        , ( 516, ( "Neophyte", "Npvice; beginner" ) )
+        , ( 516, ( "Neophyte", "Novice; beginner" ) )
         , ( 517, ( "Nexus", "A means of connection; a connected group or series; a center" ) )
         , ( 518, ( "Nonplussed", "Bewildered" ) )
         , ( 519, ( "Nostalgia", "Sentimental longing for a past time" ) )
