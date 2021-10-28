@@ -10582,9 +10582,9 @@ var $elm$core$Basics$never = function (_v0) {
 	}
 };
 var $elm$browser$Browser$element = _Browser_element;
-var $author$project$Main$Model = F5(
-	function (wordMeanings, mode, quizRange, wordsListRange, quizOptions) {
-		return {mode: mode, quizOptions: quizOptions, quizRange: quizRange, wordMeanings: wordMeanings, wordsListRange: wordsListRange};
+var $author$project$Main$Model = F6(
+	function (wordMeanings, mode, quizRange, wordsListRange, quizOptions, markedOptions) {
+		return {markedOptions: markedOptions, mode: mode, quizOptions: quizOptions, quizRange: quizRange, wordMeanings: wordMeanings, wordsListRange: wordsListRange};
 	});
 var $author$project$Main$WordsList = function (a) {
 	return {$: 'WordsList', a: a};
@@ -12995,13 +12995,14 @@ var $author$project$Data$data = $elm$core$Dict$fromList(
 		]));
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		A5(
+		A6(
 			$author$project$Main$Model,
 			$author$project$Data$data,
 			$author$project$Main$WordsList(
 				_Utils_Tuple2(1, 10)),
 			_Utils_Tuple2(1, 10),
 			_Utils_Tuple2(1, 800),
+			$elm$core$Dict$empty,
 			$elm$core$Dict$empty),
 		$elm$core$Platform$Cmd$none);
 };
@@ -13425,6 +13426,7 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
+							markedOptions: $elm$core$Dict$empty,
 							mode: $author$project$Main$Quiz(model.quizRange),
 							quizOptions: options
 						}),
@@ -13485,7 +13487,7 @@ var $author$project$Main$update = F2(
 								end)
 						}),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'UpdateWordsListRangeEnd':
 				var end = msg.a;
 				var _v5 = model.wordsListRange;
 				var start = _v5.a;
@@ -13501,9 +13503,25 @@ var $author$project$Main$update = F2(
 									$elm$core$String$toInt(end)))
 						}),
 					$elm$core$Platform$Cmd$none);
+			default:
+				var wordIndex = msg.a;
+				var optionIndex = msg.b;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							markedOptions: A3($elm$core$Dict$insert, wordIndex, optionIndex, model.markedOptions)
+						}),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
+var $author$project$Main$Correct = {$: 'Correct'};
 var $author$project$Main$CreateWordsList = {$: 'CreateWordsList'};
+var $author$project$Main$Incorrect = {$: 'Incorrect'};
+var $author$project$Main$MarkOption = F2(
+	function (a, b) {
+		return {$: 'MarkOption', a: a, b: b};
+	});
 var $author$project$Main$RandomizeNewQuiz = {$: 'RandomizeNewQuiz'};
 var $author$project$Main$UpdateQuizRangeEnd = function (a) {
 	return {$: 'UpdateQuizRangeEnd', a: a};
@@ -13757,11 +13775,16 @@ var $author$project$Main$view = function (model) {
 									var options = A2(
 										$elm$core$List$map,
 										function (index_) {
-											var finalIndex = ((!correctOptionInIndices) && _Utils_eq(minOptionIndex, index_)) ? index : index_;
-											return A2(
-												$elm$core$Maybe$withDefault,
-												_Utils_Tuple2('', 'Not found'),
-												A2($elm$core$Dict$get, finalIndex, model.wordMeanings)).b;
+											var _v4 = ((!correctOptionInIndices) && _Utils_eq(minOptionIndex, index_)) ? _Utils_Tuple2($author$project$Main$Correct, index) : _Utils_Tuple2($author$project$Main$Incorrect, index_);
+											var result = _v4.a;
+											var finalIndex = _v4.b;
+											return function (wordMeaning) {
+												return _Utils_Tuple2(result, wordMeaning.b);
+											}(
+												A2(
+													$elm$core$Maybe$withDefault,
+													_Utils_Tuple2('', 'Not found'),
+													A2($elm$core$Dict$get, finalIndex, model.wordMeanings)));
 										},
 										optionIndices);
 									var _v1 = A2(
@@ -13792,20 +13815,34 @@ var $author$project$Main$view = function (model) {
 														$elm$html$Html$Attributes$class('list-group list-group-numbered mb-3')
 													]),
 												A2(
-													$elm$core$List$map,
-													function (option) {
-														return A2(
-															$elm$html$Html$a,
-															_List_fromArray(
-																[
-																	$elm$html$Html$Attributes$href('#'),
-																	$elm$html$Html$Attributes$class('list-group-item list-group-item-action')
-																]),
-															_List_fromArray(
-																[
-																	$elm$html$Html$text(option)
-																]));
-													},
+													$elm$core$List$indexedMap,
+													F2(
+														function (optionIndex, _v2) {
+															var result = _v2.a;
+															var meaning = _v2.b;
+															var contextualClass = function () {
+																var _v3 = A2($elm$core$Dict$get, index, model.markedOptions);
+																if (_v3.$ === 'Just') {
+																	var optionIndex_ = _v3.a;
+																	return _Utils_eq(optionIndex_, optionIndex) ? (_Utils_eq(result, $author$project$Main$Correct) ? ' list-group-item-success' : (_Utils_eq(result, $author$project$Main$Incorrect) ? ' list-group-item-danger' : '')) : '';
+																} else {
+																	return '';
+																}
+															}();
+															return A2(
+																$elm$html$Html$a,
+																_List_fromArray(
+																	[
+																		$elm$html$Html$Attributes$href('#'),
+																		$elm$html$Html$Attributes$class('list-group-item list-group-item-action' + contextualClass),
+																		$elm$html$Html$Events$onClick(
+																		A2($author$project$Main$MarkOption, index, optionIndex))
+																	]),
+																_List_fromArray(
+																	[
+																		$elm$html$Html$text(meaning)
+																	]));
+														}),
 													options))
 											]));
 								},
@@ -13925,4 +13962,4 @@ var $author$project$Main$view = function (model) {
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"StartQuiz":["Dict.Dict Basics.Int (List.List Basics.Int)"],"CreateWordsList":[],"UpdateQuizRangeStart":["String.String"],"UpdateQuizRangeEnd":["String.String"],"UpdateWordsListRangeStart":["String.String"],"UpdateWordsListRangeEnd":["String.String"],"RandomizeNewQuiz":[]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"StartQuiz":["Dict.Dict Basics.Int (List.List Basics.Int)"],"CreateWordsList":[],"UpdateQuizRangeStart":["String.String"],"UpdateQuizRangeEnd":["String.String"],"UpdateWordsListRangeStart":["String.String"],"UpdateWordsListRangeEnd":["String.String"],"RandomizeNewQuiz":[],"MarkOption":["Basics.Int","Basics.Int"]}},"Dict.Dict":{"args":["k","v"],"tags":{"RBNode_elm_builtin":["Dict.NColor","k","v","Dict.Dict k v","Dict.Dict k v"],"RBEmpty_elm_builtin":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"List.List":{"args":["a"],"tags":{}},"String.String":{"args":[],"tags":{"String":[]}},"Dict.NColor":{"args":[],"tags":{"Red":[],"Black":[]}}}}})}});}(this));

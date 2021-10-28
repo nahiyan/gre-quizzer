@@ -3,12 +3,17 @@ module Main exposing (Model, Msg(..), init, main, update, view)
 import Browser
 import Data exposing (data)
 import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, h1, h3, hr, input, label, table, tbody, td, text, th, thead, tr)
+import Html exposing (Html, a, button, div, h1, h3, hr, input, label, option, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (class, href, placeholder, scope, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Random
 import Random.List exposing (shuffle)
 import Tuple
+
+
+type Result
+    = Correct
+    | Incorrect
 
 
 type alias Flags =
@@ -38,12 +43,18 @@ type Mode
 
 
 type alias Model =
-    { wordMeanings : Dict Int ( String, String ), mode : Mode, quizRange : ( Int, Int ), wordsListRange : ( Int, Int ), quizOptions : Dict Int (List Int) }
+    { wordMeanings : Dict Int ( String, String )
+    , mode : Mode
+    , quizRange : ( Int, Int )
+    , wordsListRange : ( Int, Int )
+    , quizOptions : Dict Int (List Int)
+    , markedOptions : Dict Int Int
+    }
 
 
 init : Flags -> ( Model, Cmd msg )
 init _ =
-    ( Model data (WordsList ( 1, 10 )) ( 1, 10 ) ( 1, 800 ) Dict.empty, Cmd.none )
+    ( Model data (WordsList ( 1, 10 )) ( 1, 10 ) ( 1, 800 ) Dict.empty Dict.empty, Cmd.none )
 
 
 
@@ -58,6 +69,7 @@ type Msg
     | UpdateWordsListRangeStart String
     | UpdateWordsListRangeEnd String
     | RandomizeNewQuiz
+    | MarkOption Int Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -83,7 +95,7 @@ update msg model =
                     )
 
         StartQuiz options ->
-            ( { model | mode = Quiz model.quizRange, quizOptions = options }, Cmd.none )
+            ( { model | mode = Quiz model.quizRange, quizOptions = options, markedOptions = Dict.empty }, Cmd.none )
 
         CreateWordsList ->
             ( { model | mode = WordsList model.wordsListRange }, Cmd.none )
@@ -107,6 +119,9 @@ update msg model =
             case model.wordsListRange of
                 ( start, _ ) ->
                     ( { model | wordsListRange = ( start, String.toInt end |> Maybe.withDefault 0 ) }, Cmd.none )
+
+        MarkOption wordIndex optionIndex ->
+            ( { model | markedOptions = model.markedOptions |> Dict.insert wordIndex optionIndex }, Cmd.none )
 
 
 
@@ -220,14 +235,14 @@ view model =
                                                     |> List.map
                                                         (\index_ ->
                                                             let
-                                                                finalIndex =
+                                                                ( result, finalIndex ) =
                                                                     if not correctOptionInIndices && minOptionIndex == index_ then
-                                                                        index
+                                                                        ( Correct, index )
 
                                                                     else
-                                                                        index_
+                                                                        ( Incorrect, index_ )
                                                             in
-                                                            Dict.get finalIndex model.wordMeanings |> Maybe.withDefault ( "", "Not found" ) |> Tuple.second
+                                                            Dict.get finalIndex model.wordMeanings |> Maybe.withDefault ( "", "Not found" ) |> (\wordMeaning -> ( result, Tuple.second wordMeaning ))
                                                         )
                                         in
                                         div []
@@ -236,13 +251,34 @@ view model =
                                                 [ class "list-group list-group-numbered mb-3"
                                                 ]
                                                 (options
-                                                    |> List.map
-                                                        (\option ->
+                                                    |> List.indexedMap
+                                                        (\optionIndex ( result, meaning ) ->
+                                                            let
+                                                                contextualClass =
+                                                                    case model.markedOptions |> Dict.get index of
+                                                                        Just optionIndex_ ->
+                                                                            if optionIndex_ == optionIndex then
+                                                                                if result == Correct then
+                                                                                    " list-group-item-success"
+
+                                                                                else if result == Incorrect then
+                                                                                    " list-group-item-danger"
+
+                                                                                else
+                                                                                    ""
+
+                                                                            else
+                                                                                ""
+
+                                                                        Nothing ->
+                                                                            ""
+                                                            in
                                                             a
                                                                 [ href "#"
-                                                                , class "list-group-item list-group-item-action"
+                                                                , class <| "list-group-item list-group-item-action" ++ contextualClass
+                                                                , onClick (MarkOption index optionIndex)
                                                                 ]
-                                                                [ text option ]
+                                                                [ text meaning ]
                                                         )
                                                 )
                                             ]
