@@ -1,6 +1,6 @@
 = GRE Quizzer
 
-An offline web-based GRE qualitative vocabulary quiz app, based on 800 English words.
+An offline web-based GRE vocabulary quiz app, based on 800 English words.
 
 == Screenshots
 
