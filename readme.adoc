@@ -1,0 +1,13 @@
+= GRE Quizzer
+
+An offline web-based GRE qualitative vocabulary quiz app, based on 800 English words.
+
+== Screenshots
+
+=== Quiz
+
+image::docs/screenshots/quiz.png[]
+
+=== Words List
+
+image::docs/screenshots/words-list.png[]
