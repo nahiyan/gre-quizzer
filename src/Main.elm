@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, h1, h3, hr, input, label, option, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (class, href, placeholder, scope, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Html.Events.Extra exposing (onClickPreventDefault)
 import Random
 import Random.List exposing (shuffle)
 import Tuple
@@ -276,7 +277,7 @@ view model =
                                                             a
                                                                 [ href "#"
                                                                 , class <| "list-group-item list-group-item-action" ++ contextualClass
-                                                                , onClick (MarkOption index optionIndex)
+                                                                , onClickPreventDefault (MarkOption index optionIndex)
                                                                 ]
                                                                 [ text meaning ]
                                                         )

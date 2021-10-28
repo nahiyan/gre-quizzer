@@ -13573,6 +13573,23 @@ var $elm$core$List$minimum = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
+var $elm$virtual_dom$VirtualDom$MayPreventDefault = function (a) {
+	return {$: 'MayPreventDefault', a: a};
+};
+var $elm$html$Html$Events$preventDefaultOn = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$MayPreventDefault(decoder));
+	});
+var $elm_community$html_extra$Html$Events$Extra$onClickPreventDefault = function (msg) {
+	return A2(
+		$elm$html$Html$Events$preventDefaultOn,
+		'click',
+		$elm$json$Json$Decode$succeed(
+			_Utils_Tuple2(msg, true)));
+};
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$html$Html$Attributes$scope = $elm$html$Html$Attributes$stringProperty('scope');
 var $elm$html$Html$table = _VirtualDom_node('table');
@@ -13835,7 +13852,7 @@ var $author$project$Main$view = function (model) {
 																	[
 																		$elm$html$Html$Attributes$href('#'),
 																		$elm$html$Html$Attributes$class('list-group-item list-group-item-action' + contextualClass),
-																		$elm$html$Html$Events$onClick(
+																		$elm_community$html_extra$Html$Events$Extra$onClickPreventDefault(
 																		A2($author$project$Main$MarkOption, index, optionIndex))
 																	]),
 																_List_fromArray(
