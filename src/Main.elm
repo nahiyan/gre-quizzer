@@ -132,7 +132,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div [ class "row" ]
-        [ div [ class "col-4" ]
+        [ div [ class "col-sm-4" ]
             [ div
                 [ class "mb-3"
                 ]
@@ -202,7 +202,7 @@ view model =
                 , button [ class "btn btn-outline-success", onClick CreateWordsList ] [ text "Create" ]
                 ]
             ]
-        , div [ class "col-8" ]
+        , div [ class "col-sm-8" ]
             (case model.mode of
                 Quiz range ->
                     let
@@ -232,22 +232,53 @@ view model =
                                                 optionIndices |> List.minimum |> Maybe.withDefault 0
 
                                             options =
-                                                optionIndices
-                                                    |> List.map
-                                                        (\index_ ->
-                                                            let
-                                                                ( result, finalIndex ) =
-                                                                    if not correctOptionInIndices && minOptionIndex == index_ then
-                                                                        ( Correct, index )
+                                                List.map
+                                                    (\index_ ->
+                                                        let
+                                                            ( result, finalIndex ) =
+                                                                if not correctOptionInIndices && minOptionIndex == index_ then
+                                                                    ( Correct, index )
 
-                                                                    else
-                                                                        ( Incorrect, index_ )
-                                                            in
-                                                            Dict.get finalIndex model.wordMeanings |> Maybe.withDefault ( "", "Not found" ) |> (\wordMeaning -> ( result, Tuple.second wordMeaning ))
+                                                                else
+                                                                    ( Incorrect, index_ )
+                                                        in
+                                                        Dict.get finalIndex model.wordMeanings
+                                                            |> Maybe.withDefault ( "", "Not found" )
+                                                            |> (\wordMeaning -> ( result, Tuple.second wordMeaning ))
+                                                    )
+                                                    optionIndices
+
+                                            markedCorrectClass =
+                                                options
+                                                    |> List.indexedMap (\i item -> ( i, item ))
+                                                    |> List.foldl
+                                                        (\( i, ( result, _ ) ) acc ->
+                                                            if acc == True then
+                                                                True
+
+                                                            else
+                                                                case model.markedOptions |> Dict.get index of
+                                                                    Just j ->
+                                                                        if j == i && result == Correct then
+                                                                            True
+
+                                                                        else
+                                                                            acc
+
+                                                                    _ ->
+                                                                        acc
                                                         )
+                                                        False
+                                                    |> (\correct ->
+                                                            if correct then
+                                                                " text-success"
+
+                                                            else
+                                                                ""
+                                                       )
                                         in
                                         div []
-                                            [ h3 [ class "my-3" ] [ text <| String.fromInt index ++ ". " ++ word ]
+                                            [ h3 [ class <| "my-3" ++ markedCorrectClass ] [ text <| String.fromInt index ++ ". " ++ word ]
                                             , div
                                                 [ class "list-group list-group-numbered mb-3"
                                                 ]
@@ -298,7 +329,7 @@ view model =
                         [ text <| "Words List (" ++ start ++ " to " ++ end ++ ")"
                         ]
                     , table
-                        [ class "table"
+                        [ class "table table-sm table-striped"
                         ]
                         [ thead []
                             [ tr []
@@ -325,13 +356,13 @@ view model =
                                                 Dict.get index model.wordMeanings |> Maybe.withDefault ( "Not found", "Not found" )
                                         in
                                         tr []
-                                            [ th
-                                                [ scope "row"
+                                            [ td
+                                                [ class "fw-bold small-text"
                                                 ]
                                                 [ text <| String.fromInt <| index ]
-                                            , td []
+                                            , td [ class "fw-bold small-text" ]
                                                 [ text <| Tuple.first item ]
-                                            , td []
+                                            , td [ class "small-text" ]
                                                 [ text <| Tuple.second item ]
                                             ]
                                     )

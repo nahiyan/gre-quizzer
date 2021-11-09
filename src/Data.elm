@@ -7,7 +7,7 @@ data : Dict Int ( String, String )
 data =
     Dict.fromList
         [ ( 1, ( "Abate", "To decrease; reduce" ) )
-        , ( 2, ( "Abdicate", "To give up a posiiton, right, or power" ) )
+        , ( 2, ( "Abdicate", "To give up a position, right, or power" ) )
         , ( 3, ( "Aberrant", "Deviating from what is normal" ) )
         , ( 4, ( "Abeyance", "A temporary suppression or suspension" ) )
         , ( 5, ( "Abject", "Miserable; pitiful" ) )
